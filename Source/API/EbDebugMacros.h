@@ -91,7 +91,7 @@ extern "C" {
 #define FTR_PROMIZING_AV1_TOOLS_V1 1   // Reduces Angular modes (41 to 25), disables H4/V4 @ 64x64 and 4x4 partitions, limits CDEF to {0,2,4,9} w/o chroma, removes SG filter, and enables IFS(Regular / Smooth), Independent Chroma, and MRP
 
 // Enable promising AV1 tools V2
-#define FTR_PROMIZING_AV1_TOOLS_V2 1   // Disable MFMV and MRP
+#define FTR_PROMIZING_AV1_TOOLS_V2 0   // Disable MFMV and MRP
 
 
 // Parameter-level tuning of normative tools for hardware-like constraints
