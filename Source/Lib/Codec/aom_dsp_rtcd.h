@@ -983,6 +983,8 @@ double svt_ssim_8x8_hbd_neon(const uint16_t* s, uint32_t sp, const uint16_t* r, 
 double svt_ssim_4x4_hbd_neon(const uint16_t* s, uint32_t sp, const uint16_t* r, uint32_t rp);
 
 #ifdef ARCH_AARCH64
+void svt_av1_k_means_dim1_neon(const int* data, int* centroids, uint8_t* indices, int n, int k, int max_itr);
+void svt_av1_k_means_dim2_neon(const int* data, int* centroids, uint8_t* indices, int n, int k, int max_itr);
 void svt_av1_calc_indices_dim1_neon(const int* data, const int* centroids, uint8_t* indices, int n, int k);
 void svt_av1_calc_indices_dim2_neon(const int* data, const int* centroids, uint8_t* indices, int n, int k);
 void svt_av1_compute_stats_neon(int32_t wiener_win, const uint8_t *dgd8, const uint8_t *src8, int32_t h_start, int32_t h_end, int32_t v_start, int32_t v_end, int32_t dgd_stride, int32_t src_stride, int64_t *M, int64_t *H);
