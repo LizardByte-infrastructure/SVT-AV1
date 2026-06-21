@@ -306,6 +306,18 @@ void set_segments_numbers(SequenceControlSet* scs) {
     scs->rest_segment_row_count    = (lp == PARALLEL_LEVEL_1) ? 1
            : scs->input_resolution <= INPUT_SIZE_1080p_RANGE  ? MIN(rest_seg_h, 4)
                                                               : MIN(rest_seg_h, 6);
+
+    // Low-delay ME segment right-sizing. The ME grid above is sized for VOD/RA frame
+    // dimensions (e.g. 720p -> 8x6 = 48 segments), but low-delay parallelism is bounded
+    // by the reconstructed-reference serial dependency (~2x in practice), so that many
+    // fine ME segments only add per-segment work without speeding the encode up. At the
+    // realistic RTC core counts (lp2/lp3) cap the ME (and shared TF) grid to 2x2: this
+    // lowers encoder CPU with no loss of throughput and is quality-neutral. VOD/RA and
+    // lp1 are unchanged.
+    if (scs->static_config.pred_structure == LOW_DELAY && lp != PARALLEL_LEVEL_1 && lp <= PARALLEL_LEVEL_3) {
+        scs->me_segment_row_count_array = scs->tf_segment_row_count = MIN(scs->me_segment_row_count_array, 2);
+        scs->me_segment_col_count_array = scs->tf_segment_column_count = MIN(scs->me_segment_col_count_array, 2);
+    }
 }
 
 static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet* scs) {
