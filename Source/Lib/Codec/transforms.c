@@ -3947,6 +3947,12 @@ EbErrorType svt_aom_estimate_transform(PictureControlSet* pcs, ModeDecisionConte
 
     if (svt_av1_is_lossless_segment(pcs, ctx->blk_ptr->segment_id)) {
         assert(transform_type == DCT_DCT);
+        // Lossless always uses a 4x4 WHT regardless of transform_size.
+        // Zero the full output so that callers passing transform_size > TX_4X4
+        // (e.g. the PD0 path) do not read uninitialized coefficients beyond
+        // position 15 during quantization.  Fixes gitlab#2373.
+        const int32_t n_coeffs = tx_size_wide[transform_size] * tx_size_high[transform_size];
+        memset(coeff_buffer, 0, n_coeffs * sizeof(*coeff_buffer));
         int32_t dst[16];
 
         svt_av1_fwht4x4(residual_buffer, dst, residual_stride);

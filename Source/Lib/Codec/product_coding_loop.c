@@ -4388,7 +4388,9 @@ static void perform_tx_light_pd0(PictureControlSet* pcs, ModeDecisionContext* ct
                            uint32_t qindex, uint64_t* y_coeff_bits, uint64_t* y_full_distortion) {
     ctx->three_quad_energy = 0;
 
-    TxSize       tx_size           = tx_depth_to_tx_size[0][ctx->blk_geom->bsize];
+    // AV1 lossless requires TX_4X4; use tx_depth 1 for 8x8 blocks to get TX_4X4.
+    uint8_t      pd0_tx_depth      = (pcs->mimic_only_tx_4x4 && ctx->blk_geom->bsize == BLOCK_8X8) ? 1 : 0;
+    TxSize       tx_size           = tx_depth_to_tx_size[pd0_tx_depth][ctx->blk_geom->bsize];
     uint32_t     txbwidth          = tx_size_wide[tx_size];
     uint32_t     txbheight         = (tx_size_high[tx_size] >> ctx->mds_subres_step);
     const double effective_ac_bias = get_effective_ac_bias(
