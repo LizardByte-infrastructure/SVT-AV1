@@ -66,12 +66,16 @@ static void set_global_motion_field(PictureControlSet* pcs) {
         if (ppcs->global_motion[frame_index].wmtype == TRANSLATION) {
             // The offset to derive the translation is different when the wmtype is TRANSLATION. Therefore,
             // for translation convert the param to the correct offset.
-            ppcs->global_motion[frame_index].wmmat[0] =
-                convert_to_trans_prec(ppcs->frm_hdr.allow_high_precision_mv, ppcs->global_motion[frame_index].wmmat[0])
-                << GM_TRANS_ONLY_PREC_DIFF;
-            ppcs->global_motion[frame_index].wmmat[1] =
-                convert_to_trans_prec(ppcs->frm_hdr.allow_high_precision_mv, ppcs->global_motion[frame_index].wmmat[1])
-                << GM_TRANS_ONLY_PREC_DIFF;
+            // convert_to_trans_prec() can return a negative offset; use multiplication
+            // instead of a left shift to avoid UB (left shift of negative value).
+            ppcs->global_motion[frame_index].wmmat[0] = convert_to_trans_prec(
+                                                            ppcs->frm_hdr.allow_high_precision_mv,
+                                                            ppcs->global_motion[frame_index].wmmat[0]) *
+                (1 << GM_TRANS_ONLY_PREC_DIFF);
+            ppcs->global_motion[frame_index].wmmat[1] = convert_to_trans_prec(
+                                                            ppcs->frm_hdr.allow_high_precision_mv,
+                                                            ppcs->global_motion[frame_index].wmmat[1]) *
+                (1 << GM_TRANS_ONLY_PREC_DIFF);
 
             // For TRANSLATION type global motion models, svt_aom_gm_get_motion_vector_enc() gives
             // the wrong motion vector due to an AV1 spec bug.
