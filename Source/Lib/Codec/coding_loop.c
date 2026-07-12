@@ -1543,8 +1543,9 @@ void update_coeff_cdf(PictureControlSet* pcs, EncDecContext* ctx, BlkStruct* blk
                                         ctx->coded_area_sb_uv_update,
                                         coeff_buffer_sb,
                                         blk_ptr->eob.y[txb_itr],
-                                        blk_ptr->eob.u[txb_itr],
-                                        blk_ptr->eob.v[txb_itr],
+                                        // clamp chroma index: eob.u/v are [MAX_TXB_COUNT_UV], only used when in range
+                                        blk_ptr->eob.u[txb_itr < MAX_TXB_COUNT_UV ? txb_itr : 0],
+                                        blk_ptr->eob.v[txb_itr < MAX_TXB_COUNT_UV ? txb_itr : 0],
                                         &y_txb_coeff_bits,
                                         &cb_txb_coeff_bits,
                                         &cr_txb_coeff_bits,

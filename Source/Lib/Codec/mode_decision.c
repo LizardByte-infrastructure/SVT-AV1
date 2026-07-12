@@ -1229,13 +1229,14 @@ static void bipred_3x3_candidates_injection(PictureControlSet* pcs, ModeDecision
         }
 
         int8_t best_list = -1;
-        int    diff      = ((int)ctx->post_subpel_me_mv_cost[ref0_list][list0_ref_index] -
-                    (int)ctx->post_subpel_me_mv_cost[ref1_list][list1_ref_index]) *
+        // 64-bit: (cost0 - cost1) * 100 can overflow int
+        int64_t diff = ((int64_t)ctx->post_subpel_me_mv_cost[ref0_list][list0_ref_index] -
+                        (int64_t)ctx->post_subpel_me_mv_cost[ref1_list][list1_ref_index]) *
             100;
 
         if (ctx->bipred3x3_ctrls.use_l0_l1_dev != (uint8_t)~0) {
-            if (abs(diff) >
-                (ctx->bipred3x3_ctrls.use_l0_l1_dev * (int)ctx->post_subpel_me_mv_cost[ref0_list][list0_ref_index])) {
+            if (llabs(diff) > ((int64_t)ctx->bipred3x3_ctrls.use_l0_l1_dev *
+                               (int)ctx->post_subpel_me_mv_cost[ref0_list][list0_ref_index])) {
                 return;
             }
         }
@@ -1261,8 +1262,8 @@ static void bipred_3x3_candidates_injection(PictureControlSet* pcs, ModeDecision
                 }
                 Mv to_inj_mv0 = ctx->sb_me_mv[ref0_list][list0_ref_index];
                 Mv to_inj_mv1 = ctx->sb_me_mv[ref1_list][list1_ref_index];
-                to_inj_mv1.x += (bipred_3x3_x_pos[bipred_index] << !allow_high_precision_mv);
-                to_inj_mv1.y += (bipred_3x3_y_pos[bipred_index] << !allow_high_precision_mv);
+                to_inj_mv1.x += (bipred_3x3_x_pos[bipred_index] * (1 << !allow_high_precision_mv));
+                to_inj_mv1.y += (bipred_3x3_y_pos[bipred_index] * (1 << !allow_high_precision_mv));
                 if ((ctx->injected_mv_count == 0 ||
                      mv_is_already_injected(ctx, to_inj_mv0, to_inj_mv1, to_inject_ref_type) == false)) {
                     uint8_t drl_index = 0;
@@ -1307,8 +1308,8 @@ static void bipred_3x3_candidates_injection(PictureControlSet* pcs, ModeDecision
                     }
                 }
                 Mv to_inj_mv0 = ctx->sb_me_mv[ref0_list][list0_ref_index];
-                to_inj_mv0.x += (bipred_3x3_x_pos[bipred_index] << !allow_high_precision_mv);
-                to_inj_mv0.y += (bipred_3x3_y_pos[bipred_index] << !allow_high_precision_mv);
+                to_inj_mv0.x += (bipred_3x3_x_pos[bipred_index] * (1 << !allow_high_precision_mv));
+                to_inj_mv0.y += (bipred_3x3_y_pos[bipred_index] * (1 << !allow_high_precision_mv));
                 Mv to_inj_mv1 = ctx->sb_me_mv[ref1_list][list1_ref_index];
                 if ((ctx->injected_mv_count == 0 ||
                      mv_is_already_injected(ctx, to_inj_mv0, to_inj_mv1, to_inject_ref_type) == false)) {
