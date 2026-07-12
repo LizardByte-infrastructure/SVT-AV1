@@ -736,39 +736,20 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
     return return_error;
 }
 
-// clang-format off
-static RateControlPorts rate_control_ports[] = {
-    {RATE_CONTROL_INPUT_PORT_INLME,         0},
-    {RATE_CONTROL_INPUT_PORT_PACKETIZATION, 0},
-    {RATE_CONTROL_INPUT_PORT_INVALID,       0}
-};
-
-static PicMgrPorts pic_mgr_ports[] = {
-    {PIC_MGR_INPUT_PORT_SOP,           0},
-    {PIC_MGR_INPUT_PORT_PACKETIZATION, 0},
-    {PIC_MGR_INPUT_PORT_REST,          0},
-    {PIC_MGR_INPUT_PORT_INVALID,       0}
-};
-
 typedef struct {
     int32_t  type;
     uint32_t count;
 } EncDecPorts_t;
 
-static EncDecPorts_t enc_dec_ports[] = {
-    {ENCDEC_INPUT_PORT_MDC,     0},
-    {ENCDEC_INPUT_PORT_ENCDEC,  0},
-    {ENCDEC_INPUT_PORT_INVALID, 0}
-};
-static EncDecPorts_t tpl_ports[] = {
-    {TPL_INPUT_PORT_SOP,     0},
-    {TPL_INPUT_PORT_TPL,     0},
-    {TPL_INPUT_PORT_INVALID, 0}
-};
-// clang-format on
+// The port-count arrays are built per-instance as locals in svt_av1_enc_init()
+// and passed to the lookup/total_count helpers below. They must not be
+// file-scope globals: the .count fields are derived from per-instance,
+// preset-dependent process counts, so concurrent svt_av1_enc_init() calls at
+// different presets would race on them (see #2381).
 
 // Rate Control
-static uint32_t rate_control_port_lookup(RateControlInputPortTypes type, uint32_t port_type_index) {
+static uint32_t rate_control_port_lookup(const RateControlPorts* rate_control_ports, RateControlInputPortTypes type,
+                                         uint32_t port_type_index) {
     uint32_t port_index = 0;
     uint32_t port_count = 0;
 
@@ -779,7 +760,7 @@ static uint32_t rate_control_port_lookup(RateControlInputPortTypes type, uint32_
 }
 
 // Rate Control
-static uint32_t rate_control_port_total_count(void) {
+static uint32_t rate_control_port_total_count(const RateControlPorts* rate_control_ports) {
     uint32_t port_index  = 0;
     uint32_t total_count = 0;
 
@@ -789,7 +770,8 @@ static uint32_t rate_control_port_total_count(void) {
     return total_count;
 }
 
-static uint32_t pic_mgr_port_lookup(PicMgrInputPortTypes type, uint32_t port_type_index) {
+static uint32_t pic_mgr_port_lookup(const PicMgrPorts* pic_mgr_ports, PicMgrInputPortTypes type,
+                                    uint32_t port_type_index) {
     uint32_t port_index = 0;
     uint32_t port_count = 0;
 
@@ -799,7 +781,7 @@ static uint32_t pic_mgr_port_lookup(PicMgrInputPortTypes type, uint32_t port_typ
     return (port_count + port_type_index);
 }
 
-static uint32_t pic_mgr_port_total_count(void) {
+static uint32_t pic_mgr_port_total_count(const PicMgrPorts* pic_mgr_ports) {
     uint32_t port_index  = 0;
     uint32_t total_count = 0;
 
@@ -810,7 +792,7 @@ static uint32_t pic_mgr_port_total_count(void) {
 }
 
 // TPL
-static uint32_t tpl_port_lookup(int32_t type, uint32_t port_type_index) {
+static uint32_t tpl_port_lookup(const EncDecPorts_t* tpl_ports, int32_t type, uint32_t port_type_index) {
     uint32_t port_index = 0;
     uint32_t port_count = 0;
 
@@ -820,7 +802,7 @@ static uint32_t tpl_port_lookup(int32_t type, uint32_t port_type_index) {
     return (port_count + port_type_index);
 }
 
-static uint32_t tpl_port_total_count(void) {
+static uint32_t tpl_port_total_count(const EncDecPorts_t* tpl_ports) {
     uint32_t port_index  = 0;
     uint32_t total_count = 0;
 
@@ -834,7 +816,7 @@ static uint32_t tpl_port_total_count(void) {
  * Input Port Lookup
  *****************************************/
 // EncDec
-static uint32_t enc_dec_port_lookup(int32_t type, uint32_t port_type_index) {
+static uint32_t enc_dec_port_lookup(const EncDecPorts_t* enc_dec_ports, int32_t type, uint32_t port_type_index) {
     uint32_t port_index = 0;
     uint32_t port_count = 0;
 
@@ -845,7 +827,7 @@ static uint32_t enc_dec_port_lookup(int32_t type, uint32_t port_type_index) {
 }
 
 // EncDec
-static uint32_t enc_dec_port_total_count(void) {
+static uint32_t enc_dec_port_total_count(const EncDecPorts_t* enc_dec_ports) {
     uint32_t port_index  = 0;
     uint32_t total_count = 0;
 
@@ -1531,18 +1513,33 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
     /************************************
     * Picture Buffers
     ************************************/
-    // Allocate Resource Arrays
-    pic_mgr_ports[PIC_MGR_INPUT_PORT_SOP].count           = scs->source_based_operations_process_init_count;
-    pic_mgr_ports[PIC_MGR_INPUT_PORT_PACKETIZATION].count = EB_PacketizationProcessInitCount;
-    pic_mgr_ports[PIC_MGR_INPUT_PORT_REST].count          = scs->rest_process_init_count;
-    // Rate Control
-    rate_control_ports[RATE_CONTROL_INPUT_PORT_INLME].count         = EB_PictureManagerProcessInitCount;
-    rate_control_ports[RATE_CONTROL_INPUT_PORT_PACKETIZATION].count = EB_PacketizationProcessInitCount;
-
-    enc_dec_ports[ENCDEC_INPUT_PORT_MDC].count    = scs->mode_decision_configuration_process_init_count;
-    enc_dec_ports[ENCDEC_INPUT_PORT_ENCDEC].count = scs->enc_dec_process_init_count;
-    tpl_ports[TPL_INPUT_PORT_SOP].count           = scs->source_based_operations_process_init_count;
-    tpl_ports[TPL_INPUT_PORT_TPL].count           = scs->tpl_disp_process_init_count;
+    // Allocate Resource Arrays. These are per-instance locals (not file-scope
+    // globals) so concurrent inits at different presets cannot race on the
+    // preset-dependent .count fields (see #2381). Slots are in enum order and
+    // terminated by the *_INPUT_PORT_INVALID entry.
+    // clang-format off
+    const PicMgrPorts pic_mgr_ports[] = {
+        {PIC_MGR_INPUT_PORT_SOP,           scs->source_based_operations_process_init_count},
+        {PIC_MGR_INPUT_PORT_PACKETIZATION, EB_PacketizationProcessInitCount},
+        {PIC_MGR_INPUT_PORT_REST,          scs->rest_process_init_count},
+        {PIC_MGR_INPUT_PORT_INVALID,       0}
+    };
+    const RateControlPorts rate_control_ports[] = {
+        {RATE_CONTROL_INPUT_PORT_INLME,         EB_PictureManagerProcessInitCount},
+        {RATE_CONTROL_INPUT_PORT_PACKETIZATION, EB_PacketizationProcessInitCount},
+        {RATE_CONTROL_INPUT_PORT_INVALID,       0}
+    };
+    const EncDecPorts_t enc_dec_ports[] = {
+        {ENCDEC_INPUT_PORT_MDC,     scs->mode_decision_configuration_process_init_count},
+        {ENCDEC_INPUT_PORT_ENCDEC,  scs->enc_dec_process_init_count},
+        {ENCDEC_INPUT_PORT_INVALID, 0}
+    };
+    const EncDecPorts_t tpl_ports[] = {
+        {TPL_INPUT_PORT_SOP,     scs->source_based_operations_process_init_count},
+        {TPL_INPUT_PORT_TPL,     scs->tpl_disp_process_init_count},
+        {TPL_INPUT_PORT_INVALID, 0}
+    };
+    // clang-format on
     {
         // Must always allocate mem b/c don't know if restoration is on or off at this point
         // The restoration assumes only 1 tile is used, so only allocate for 1 tile... see svt_av1_alloc_restoration_struct()
@@ -1736,7 +1733,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
         EB_NEW(enc_handle_ptr->picture_demux_results_resource_ptr,
                svt_system_resource_ctor,
                scs->picture_demux_fifo_init_count,
-               pic_mgr_port_total_count(),
+               pic_mgr_port_total_count(pic_mgr_ports),
                EB_PictureManagerProcessInitCount,
                svt_aom_picture_results_creator,
                &picture_result_init_data,
@@ -1757,7 +1754,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
         EB_NEW(enc_handle_ptr->tpl_disp_res_srm,
                svt_system_resource_ctor,
                scs->tpl_disp_fifo_init_count,
-               tpl_port_total_count(),
+               tpl_port_total_count(tpl_ports),
                scs->tpl_disp_process_init_count,
                tpl_disp_results_creator,
                &tpl_disp_result_init_data,
@@ -1771,7 +1768,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
         EB_NEW(enc_handle_ptr->rate_control_tasks_resource_ptr,
                svt_system_resource_ctor,
                scs->rate_control_tasks_fifo_init_count,
-               rate_control_port_total_count(),
+               rate_control_port_total_count(rate_control_ports),
                EB_RateControlProcessInitCount,
                svt_aom_rate_control_tasks_creator,
                &rate_control_tasks_init_data,
@@ -1799,7 +1796,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
         EB_NEW(enc_handle_ptr->enc_dec_tasks_resource_ptr,
                svt_system_resource_ctor,
                scs->mode_decision_configuration_fifo_init_count,
-               enc_dec_port_total_count(),
+               enc_dec_port_total_count(enc_dec_ports),
                scs->enc_dec_process_init_count,
                svt_aom_enc_dec_tasks_creator,
                &mode_decision_result_init_data,
@@ -1939,8 +1936,8 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
         EB_NEW(enc_handle_ptr->source_based_operations_context_ptr_array[process_index],
                svt_aom_source_based_operations_context_ctor,
                enc_handle_ptr,
-               tpl_port_lookup(TPL_INPUT_PORT_SOP, process_index),
-               pic_mgr_port_lookup(PIC_MGR_INPUT_PORT_SOP, process_index));
+               tpl_port_lookup(tpl_ports, TPL_INPUT_PORT_SOP, process_index),
+               pic_mgr_port_lookup(pic_mgr_ports, PIC_MGR_INPUT_PORT_SOP, process_index));
     }
 
     // TPL dispenser
@@ -1950,14 +1947,14 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
                svt_aom_tpl_disp_context_ctor,
                enc_handle_ptr,
                process_index,
-               tpl_port_lookup(TPL_INPUT_PORT_TPL, process_index));
+               tpl_port_lookup(tpl_ports, TPL_INPUT_PORT_TPL, process_index));
     }
 
     // Picture Manager Context
     EB_NEW(enc_handle_ptr->picture_manager_context_ptr,
            svt_aom_picture_manager_context_ctor,
            enc_handle_ptr,
-           rate_control_port_lookup(RATE_CONTROL_INPUT_PORT_INLME, 0), //Pic-Mgr uses the first Port
+           rate_control_port_lookup(rate_control_ports, RATE_CONTROL_INPUT_PORT_INLME, 0), //Pic-Mgr uses the first Port
            scs->picture_control_set_pool_init_count);
 
     // Rate Control Context
@@ -1975,7 +1972,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
                svt_aom_mode_decision_configuration_context_ctor,
                enc_handle_ptr,
                process_index,
-               enc_dec_port_lookup(ENCDEC_INPUT_PORT_MDC, process_index));
+               enc_dec_port_lookup(enc_dec_ports, ENCDEC_INPUT_PORT_MDC, process_index));
     }
 
     // EncDec Contexts
@@ -1985,7 +1982,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
                svt_aom_enc_dec_context_ctor,
                enc_handle_ptr,
                process_index,
-               enc_dec_port_lookup(ENCDEC_INPUT_PORT_ENCDEC, process_index));
+               enc_dec_port_lookup(enc_dec_ports, ENCDEC_INPUT_PORT_ENCDEC, process_index));
     }
 
     // Dlf Contexts
@@ -2013,7 +2010,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
                svt_aom_rest_context_ctor,
                enc_handle_ptr,
                process_index,
-               pic_mgr_port_lookup(PIC_MGR_INPUT_PORT_REST, process_index));
+               pic_mgr_port_lookup(pic_mgr_ports, PIC_MGR_INPUT_PORT_REST, process_index));
     }
 
     // Entropy Coding Contexts
@@ -2029,8 +2026,8 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
     EB_NEW(enc_handle_ptr->packetization_context_ptr,
            svt_aom_packetization_context_ctor,
            enc_handle_ptr,
-           rate_control_port_lookup(RATE_CONTROL_INPUT_PORT_PACKETIZATION, 0),
-           pic_mgr_port_lookup(PIC_MGR_INPUT_PORT_PACKETIZATION, 0),
+           rate_control_port_lookup(rate_control_ports, RATE_CONTROL_INPUT_PORT_PACKETIZATION, 0),
+           pic_mgr_port_lookup(pic_mgr_ports, PIC_MGR_INPUT_PORT_PACKETIZATION, 0),
            EB_PictureDecisionProcessInitCount + EB_RateControlProcessInitCount); // me_port_index
 
     /************************************
