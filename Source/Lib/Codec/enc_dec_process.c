@@ -1262,6 +1262,7 @@ static void prepare_input_picture(SequenceControlSet* scs, PictureControlSet* pc
     uint32_t sb_width  = MIN(scs->sb_size, pcs->ppcs->aligned_width - sb_org_x);
     uint32_t sb_height = MIN(scs->sb_size, pcs->ppcs->aligned_height - sb_org_y);
 
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     if (is_16bit && scs->static_config.encoder_bit_depth > EB_EIGHT_BIT) {
         //SB128_TODO change 10bit SB creation
 
@@ -1331,6 +1332,7 @@ static void prepare_input_picture(SequenceControlSet* scs, PictureControlSet* pc
                 ctx->input_sample16bit_buffer, pcs, sb_org_x, sb_org_y, scs->sb_size, scs->sb_size);
         }
     }
+#endif
 
     if (is_16bit && scs->static_config.encoder_bit_depth == EB_EIGHT_BIT) {
         const uint32_t input_luma_offset = ((sb_org_y)*input_pic->y_stride) + (sb_org_x);

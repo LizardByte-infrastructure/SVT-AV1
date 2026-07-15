@@ -178,6 +178,11 @@ uint8_t svt_aom_get_enable_me_16x16(EncMode enc_mode) {
 }
 
 uint8_t svt_aom_get_gm_core_level(EncMode enc_mode, bool super_res_off) {
+#if !CONFIG_ENABLE_GLOBAL_MOTION
+    (void)enc_mode;
+    (void)super_res_off;
+    return 0;
+#else
     uint8_t gm_level = 0;
     if (super_res_off) {
         if (enc_mode <= ENC_MR) {
@@ -189,6 +194,7 @@ uint8_t svt_aom_get_gm_core_level(EncMode enc_mode, bool super_res_off) {
         }
     }
     return gm_level;
+#endif
 }
 
 uint8_t svt_aom_derive_gm_level(PictureParentControlSet* pcs, bool super_res_off) {
@@ -2491,6 +2497,11 @@ void svt_aom_sig_deriv_multi_processes_allintra(SequenceControlSet* scs, Picture
 ******************************************************/
 void svt_aom_set_gm_controls(PictureParentControlSet* pcs, uint8_t gm_level) {
     GmControls* gm_ctrls = &pcs->gm_ctrls;
+#if !CONFIG_ENABLE_GLOBAL_MOTION
+    (void)gm_level;
+    gm_ctrls->enabled    = 0;
+    gm_ctrls->pp_enabled = 0;
+#else
     switch (gm_level) {
     case 0:
         gm_ctrls->enabled    = 0;
@@ -2585,6 +2596,7 @@ void svt_aom_set_gm_controls(PictureParentControlSet* pcs, uint8_t gm_level) {
     if (gm_level) {
         assert((gm_ctrls->match_sz & 1) == 1);
     }
+#endif // CONFIG_ENABLE_GLOBAL_MOTION
 }
 
 static void set_inter_comp_controls(ModeDecisionContext* ctx, uint8_t inter_comp_mode) {
@@ -2779,11 +2791,15 @@ Input   : encoder mode and tune
 Output  : Pre-Analysis signal(s)
 ******************************************************/
 void svt_aom_sig_deriv_pre_analysis_scs(SequenceControlSet* scs, int8_t enc_mode) {
-    const bool rtc_tune = scs->static_config.rtc;
     const bool allintra = scs->allintra;
     // initialize sequence level enable_superres
+#if CONFIG_ENABLE_SUPERRES
     scs->seq_header.enable_superres = scs->static_config.superres_mode > SUPERRES_NONE ? 1 : 0;
-    uint8_t ii_allowed              = 0;
+#else
+    scs->seq_header.enable_superres = 0;
+#endif
+#if CONFIG_ENABLE_INTER_INTRA
+    uint8_t ii_allowed = 0;
     for (uint8_t transition_present = 0; transition_present < 2; transition_present++) {
         if (ii_allowed) {
             break;
@@ -2791,13 +2807,24 @@ void svt_aom_sig_deriv_pre_analysis_scs(SequenceControlSet* scs, int8_t enc_mode
         ii_allowed |= svt_aom_get_inter_intra_level(enc_mode, transition_present);
     }
     scs->seq_header.enable_interintra_compound = ii_allowed ? 1 : 0;
+#else
+    scs->seq_header.enable_interintra_compound = 0;
+#endif
 
+#if CONFIG_ENABLE_FILTER_INTRA || CONFIG_ENABLE_RESTORATION
+    const bool rtc_tune = scs->static_config.rtc;
+#endif
+#if CONFIG_ENABLE_FILTER_INTRA
     uint8_t is_filter_intra_used = allintra ? get_filter_intra_level_allintra(enc_mode)
         : rtc_tune                          ? get_filter_intra_level_rtc()
                                             : get_filter_intra_level_default(enc_mode);
 
     scs->seq_header.filter_intra_level = is_filter_intra_used ? 1 : 0;
+#else
+    scs->seq_header.filter_intra_level = 0;
+#endif
 
+#if CONFIG_ENABLE_INTER_COMPOUND
     if (get_inter_compound_level(enc_mode)) {
         scs->seq_header.order_hint_info.enable_jnt_comp = 1; //DISTANCE
         scs->seq_header.enable_masked_compound          = 1; //DIFF+WEDGE
@@ -2805,6 +2832,10 @@ void svt_aom_sig_deriv_pre_analysis_scs(SequenceControlSet* scs, int8_t enc_mode
         scs->seq_header.order_hint_info.enable_jnt_comp = 0;
         scs->seq_header.enable_masked_compound          = 0;
     }
+#else
+    scs->seq_header.order_hint_info.enable_jnt_comp = 0;
+    scs->seq_header.enable_masked_compound          = 0;
+#endif
     // For non-still-image or non-all-intra configurations, keep edge filter always ON, otherwise OFF unless angular refinement pruning techniques are active
     if (allintra) {
         // Flag indicating whether angular refinement pruning is active
@@ -2820,6 +2851,7 @@ void svt_aom_sig_deriv_pre_analysis_scs(SequenceControlSet* scs, int8_t enc_mode
     } else {
         scs->seq_header.enable_intra_edge_filter = 1;
     }
+#if CONFIG_ENABLE_RESTORATION
     if (scs->static_config.enable_restoration_filtering == DEFAULT) {
         // As allocation has already happened based on the initial input resolution, the resolution
         // changes should not impact enabling restoration. For some presets, restoration is off for 8K
@@ -2847,6 +2879,9 @@ void svt_aom_sig_deriv_pre_analysis_scs(SequenceControlSet* scs, int8_t enc_mode
                          : svt_aom_get_enable_restoration_default(enc_mode, DEFAULT, fr_res, scs->static_config.fast_decode);
         scs->seq_header.enable_restoration = (scs->static_config.enable_restoration_filtering && auto_en) ? 1 : 0;
     }
+#else
+    scs->seq_header.enable_restoration = 0;
+#endif
 
     if (scs->static_config.cdef_level == DEFAULT) {
         scs->seq_header.cdef_level = 1;

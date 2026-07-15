@@ -1113,16 +1113,18 @@ AomConvolveFn svt_aom_convolve[/*subX*/ 2][/*subY*/ 2][/*bi*/ 2];
 
 void svt_aom_asm_set_convolve_asm_table(void) {
     svt_aom_convolve[0][0][0] = svt_av1_convolve_2d_copy_sr;
-    svt_aom_convolve[0][0][1] = svt_av1_jnt_convolve_2d_copy;
-
     svt_aom_convolve[0][1][0] = svt_av1_convolve_y_sr;
-    svt_aom_convolve[0][1][1] = svt_av1_jnt_convolve_y;
-
     svt_aom_convolve[1][0][0] = svt_av1_convolve_x_sr;
-    svt_aom_convolve[1][0][1] = svt_av1_jnt_convolve_x;
-
     svt_aom_convolve[1][1][0] = svt_av1_convolve_2d_sr;
+#if CONFIG_ENABLE_INTER_COMPOUND
+    // Compound (jnt) convolve is only reached when is_compound==1 (a block with a
+    // 2nd reference). RTC minimal is single-ref (see mrp coupling assert), so these
+    // slots are never indexed; guarding them lets LTO strip the jnt_convolve impls.
+    svt_aom_convolve[0][0][1] = svt_av1_jnt_convolve_2d_copy;
+    svt_aom_convolve[0][1][1] = svt_av1_jnt_convolve_y;
+    svt_aom_convolve[1][0][1] = svt_av1_jnt_convolve_x;
     svt_aom_convolve[1][1][1] = svt_av1_jnt_convolve_2d;
+#endif
 }
 
 DECLARE_ALIGNED(256, const InterpKernel, sub_pel_filters_8sharp[SUBPEL_SHIFTS]) = {{0, 0, 0, 128, 0, 0, 0, 0},

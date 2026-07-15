@@ -744,7 +744,9 @@ static void pad_2b_compressed_input_picture(uint8_t* src_pic, uint32_t src_strid
  ************************************************/
 void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlSet*  scs,
                                                                 EbPictureBufferDesc* input_pic) {
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     bool is16_bit_input = scs->static_config.encoder_bit_depth > EB_EIGHT_BIT;
+#endif
 
     uint32_t       color_format  = input_pic->color_format;
     const uint16_t subsampling_x = (color_format == EB_YUV444 ? 0 : 1);
@@ -776,6 +778,7 @@ void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlS
                           scs->pad_bottom >> subsampling_y);
     }
 
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     if (is16_bit_input) {
         uint32_t comp_stride_y = input_pic->y_stride / 4;
 
@@ -808,6 +811,7 @@ void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlS
                                             scs->pad_bottom >> subsampling_y);
         }
     }
+#endif
 
     return;
 }

@@ -1272,12 +1272,18 @@ void init_ii_masks(void);
 static ONCE_ROUTINE(init_global_tables) {
     svt_aom_asm_set_convolve_asm_table();
     svt_aom_init_intra_dc_predictors_c_internal();
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     svt_aom_asm_set_convolve_hbd_asm_table();
+#endif
     svt_aom_init_intra_predictors_internal();
     svt_av1_init_me_luts();
     init_fn_ptr();
+#if CONFIG_ENABLE_INTER_COMPOUND
     svt_av1_init_wedge_masks();
+#endif
+#if CONFIG_ENABLE_INTER_INTRA
     init_ii_masks();
+#endif
     svt_av1_crc32c_table_init();
     ONCE_ROUTINE_EPILOG;
 }
@@ -1346,7 +1352,7 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType* svt_enc_component) {
                                                           svt_aom_get_tpl_group_level(1, scs->static_config.enc_mode),
                                                           input_data.picture_width,
                                                           input_data.picture_height);
-        input_data.aq_mode        = scs->static_config.aq_mode;
+        input_data.aq_mode              = scs->static_config.aq_mode;
 
         input_data.calculate_variance = scs->calculate_variance;
         input_data.calc_hist = scs->calc_hist = scs->allintra == false &&
@@ -3486,6 +3492,17 @@ static void set_mrp_ctrl_with_level(const SequenceControlSet* scs, MrpCtrls* mrp
     } else {
         mrp_ctrl->ld_reduce_ref_buffs = 0;
     }
+#if !CONFIG_ENABLE_INTER_COMPOUND
+    // Compound prediction is disabled in this build, so the compound (jnt) convolve
+    // path is stripped (inter_prediction.c). That is only safe if no block can ever
+    // have a 2nd reference, i.e. single-reference only. If this fires, an RTC preset
+    // was retuned to use >1 reference while compound is compiled out -> re-enable
+    // CONFIG_ENABLE_INTER_COMPOUND or keep RTC single-ref.
+    if (scs->static_config.rtc) {
+        assert(mrp_ctrl->base_ref_list0_count <= 1 && mrp_ctrl->non_base_ref_list0_count <= 1 &&
+               mrp_ctrl->base_ref_list1_count == 0 && mrp_ctrl->non_base_ref_list1_count == 0);
+    }
+#endif
 }
 
 // Preset-driven entry point for setting mrp_ctrl. Owns the
