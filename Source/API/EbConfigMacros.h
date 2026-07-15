@@ -26,15 +26,58 @@
 #define RTC_BUILD 0
 #endif
 
+#ifndef MINIMAL_BUILD
+#define MINIMAL_BUILD 0
+#endif
+
 #if RTC_BUILD
-#define CONFIG_LOG_QUIET                    1
 
-#define CONFIG_ENABLE_QUANT_MATRIX          0
-#define CONFIG_ENABLE_OBMC                  0
-#define CONFIG_ENABLE_FILM_GRAIN            0
-#define CONFIG_ENABLE_HIGH_BIT_DEPTH        0
-
+#if MINIMAL_BUILD
 #define MIN_ENC_PRESET                      ENC_M9
+
+#ifndef CONFIG_LOG_QUIET
+#define CONFIG_LOG_QUIET                    1
+#endif
+
+// Below features are disabled based on 2 assumptions:
+// 1. 8-bit input/processing only
+// 2. MIN_ENC_PRESET=ENC_M9
+
+#ifndef CONFIG_ENABLE_QUANT_MATRIX
+#define CONFIG_ENABLE_QUANT_MATRIX          0
+#endif
+#ifndef CONFIG_ENABLE_OBMC
+#define CONFIG_ENABLE_OBMC                  0
+#endif
+#ifndef CONFIG_ENABLE_FILM_GRAIN
+#define CONFIG_ENABLE_FILM_GRAIN            0
+#endif
+#ifndef CONFIG_ENABLE_HIGH_BIT_DEPTH
+#define CONFIG_ENABLE_HIGH_BIT_DEPTH        0
+#endif
+#ifndef CONFIG_ENABLE_RESTORATION
+#define CONFIG_ENABLE_RESTORATION           0
+#endif
+#ifndef CONFIG_ENABLE_GLOBAL_MOTION
+#define CONFIG_ENABLE_GLOBAL_MOTION         0
+#endif
+#ifndef CONFIG_ENABLE_INTER_COMPOUND
+#define CONFIG_ENABLE_INTER_COMPOUND        0
+#endif
+#ifndef CONFIG_ENABLE_INTER_INTRA
+#define CONFIG_ENABLE_INTER_INTRA           0
+#endif
+#ifndef CONFIG_ENABLE_FILTER_INTRA
+#define CONFIG_ENABLE_FILTER_INTRA          0
+#endif
+#ifndef CONFIG_ENABLE_SUPERRES
+#define CONFIG_ENABLE_SUPERRES              0
+#endif
+#ifndef CONFIG_ENABLE_PALETTE
+#define CONFIG_ENABLE_PALETTE               0
+#endif
+#endif // MINIMAL_BUILD
+
 #endif
 
 #ifndef MIN_ENC_PRESET
@@ -88,6 +131,34 @@
 
 #ifndef CONFIG_ENABLE_HIGH_BIT_DEPTH
 #define CONFIG_ENABLE_HIGH_BIT_DEPTH        1
+#endif
+
+#ifndef CONFIG_ENABLE_RESTORATION
+#define CONFIG_ENABLE_RESTORATION           1
+#endif
+
+#ifndef CONFIG_ENABLE_GLOBAL_MOTION
+#define CONFIG_ENABLE_GLOBAL_MOTION         1
+#endif
+
+#ifndef CONFIG_ENABLE_INTER_COMPOUND
+#define CONFIG_ENABLE_INTER_COMPOUND        1
+#endif
+
+#ifndef CONFIG_ENABLE_INTER_INTRA
+#define CONFIG_ENABLE_INTER_INTRA           1
+#endif
+
+#ifndef CONFIG_ENABLE_FILTER_INTRA
+#define CONFIG_ENABLE_FILTER_INTRA          1
+#endif
+
+#ifndef CONFIG_ENABLE_SUPERRES
+#define CONFIG_ENABLE_SUPERRES              1
+#endif
+
+#ifndef CONFIG_ENABLE_PALETTE
+#define CONFIG_ENABLE_PALETTE               1
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every

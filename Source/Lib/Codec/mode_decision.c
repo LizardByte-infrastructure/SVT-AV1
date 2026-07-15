@@ -495,6 +495,10 @@ static COMPOUND_TYPE to_av1_compound_lut[] = {COMPOUND_AVERAGE, COMPOUND_DISTWTD
 
 static void determine_compound_mode(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidate* cand,
                                     MD_COMP_TYPE cur_type) {
+#if !CONFIG_ENABLE_INTER_COMPOUND
+    (void)pcs;
+    (void)ctx;
+#endif
     BlockModeInfo* block_mi        = &cand->block_mi;
     block_mi->interinter_comp.type = to_av1_compound_lut[cur_type];
     switch (cur_type) {
@@ -510,12 +514,16 @@ static void determine_compound_mode(PictureControlSet* pcs, ModeDecisionContext*
         block_mi->comp_group_idx            = 1;
         block_mi->compound_idx              = 1;
         block_mi->interinter_comp.mask_type = 55;
+#if CONFIG_ENABLE_INTER_COMPOUND
         svt_aom_search_compound_diff_wedge(pcs, ctx, cand);
+#endif
         break;
     case MD_COMP_WEDGE:
         block_mi->comp_group_idx = 1;
         block_mi->compound_idx   = 1;
+#if CONFIG_ENABLE_INTER_COMPOUND
         svt_aom_search_compound_diff_wedge(pcs, ctx, cand);
+#endif
         break;
     default:
         SVT_ERROR("not used comp type\n");

@@ -8688,6 +8688,7 @@ static void copy_recon_light_pd1(PictureControlSet* pcs, ModeDecisionContext* ct
 /*
  * Convert the recon picture from 16bit to 8bit when bypassing EncDec.
  */
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
 static void convert_md_recon_16bit_to_8bit(PictureControlSet* pcs, ModeDecisionContext* ctx) {
     EbPictureBufferDesc* recon_buffer_16bit;
     EbPictureBufferDesc* recon_buffer_8bit;
@@ -8789,6 +8790,7 @@ static void convert_md_recon_16bit_to_8bit(PictureControlSet* pcs, ModeDecisionC
                       ctx->blk_geom->bwidth_uv,
                       ctx->blk_geom->bheight_uv);
 }
+#endif // CONFIG_ENABLE_HIGH_BIT_DEPTH
 
 // Check if reference frame pair of the current block matches with the given
 // block.
@@ -9024,7 +9026,9 @@ static void md_encode_block_light_pd1(PictureControlSet* pcs, ModeDecisionContex
     // Convert 10bit recon (used as final EncDec recon) to 8bit recon (used for MD intra pred)
     if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && ctx->hbd_md) {
         if (!ctx->skip_intra) {
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
             convert_md_recon_16bit_to_8bit(pcs, ctx);
+#endif
         }
         ctx->hbd_md = 0;
     }
@@ -9543,7 +9547,9 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
     if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !org_hbd && ctx->pd_pass == PD_PASS_1 &&
         ctx->hbd_md) {
         if (!ctx->skip_intra || ctx->inter_intra_comp_ctrls.enabled) {
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
             convert_md_recon_16bit_to_8bit(pcs, ctx);
+#endif
         }
         ctx->hbd_md             = 0;
         ctx->need_hbd_comp_mds3 = 0;
