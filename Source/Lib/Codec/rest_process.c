@@ -143,6 +143,7 @@ EbErrorType svt_aom_rest_context_ctor(EbThreadContext* thread_ctx, const EbEncHa
 // condition between threads.
 //
 // Return a pointer to the recon pic to be used during the restoration search.
+#if CONFIG_ENABLE_RESTORATION
 static EbPictureBufferDesc* get_own_recon(SequenceControlSet* scs, PictureControlSet* pcs, RestContext* context_ptr,
                                           bool is_16bit) {
     EbPictureBufferDesc* recon_pic;
@@ -186,6 +187,7 @@ static EbPictureBufferDesc* get_own_recon(SequenceControlSet* scs, PictureContro
     }
     return org_rec;
 }
+#endif // CONFIG_ENABLE_RESTORATION
 
 static void copy_statistics_to_ref_obj_ect(PictureControlSet* pcs, SequenceControlSet* scs) {
     PictureParentControlSet* ppcs    = pcs->ppcs;
@@ -262,9 +264,10 @@ EbErrorType svt_aom_rest_kernel_iter(void* context) {
     PictureControlSet*       pcs          = (PictureControlSet*)cdef_results->pcs_wrapper->object_ptr;
     PictureParentControlSet* ppcs         = pcs->ppcs;
     SequenceControlSet*      scs          = pcs->scs;
-    FrameHeader*             frm_hdr      = &ppcs->frm_hdr;
     bool                     is_16bit     = scs->is_16bit_pipeline;
-    Av1Common*               cm           = ppcs->av1_cm;
+#if CONFIG_ENABLE_RESTORATION
+    FrameHeader* frm_hdr = &ppcs->frm_hdr;
+    Av1Common*   cm      = ppcs->av1_cm;
     if (ppcs->enable_restoration && frm_hdr->allow_intrabc == 0) {
         // If using boundaries during the filter search, copy the recon pic to a new buffer (to
         // avoid race condition from many threads modifying the same recon pic).
@@ -322,12 +325,16 @@ EbErrorType svt_aom_rest_kernel_iter(void* context) {
         restoration_seg_search(
             context_ptr->rst_tmpbuf, &org_fts, &cpi_source, &trial_frame_rst, pcs, cdef_results->segment_index);
     }
+#endif // CONFIG_ENABLE_RESTORATION
+
+    //all seg based search is done.
 
     //all seg based search is done. update total processed segments. if all done, finish the search and perfrom application.
     svt_block_on_mutex(pcs->rest_search_mutex);
 
     pcs->tot_seg_searched_rest++;
     if (pcs->tot_seg_searched_rest == pcs->rest_segments_total_count) {
+#if CONFIG_ENABLE_RESTORATION
         if (ppcs->enable_restoration && frm_hdr->allow_intrabc == 0) {
             rest_finish_search(pcs);
 
@@ -339,7 +346,9 @@ EbErrorType svt_aom_rest_kernel_iter(void* context) {
                     svt_av1_loop_restoration_filter_frame(context_ptr->rst_tmpbuf, cm->frame_to_show, cm, 0);
                 }
             }
-        } else {
+        } else
+#endif // CONFIG_ENABLE_RESTORATION
+        {
             pcs->rst_info[0].frame_restoration_type = RESTORE_NONE;
             pcs->rst_info[1].frame_restoration_type = RESTORE_NONE;
             pcs->rst_info[2].frame_restoration_type = RESTORE_NONE;
