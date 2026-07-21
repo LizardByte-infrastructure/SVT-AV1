@@ -832,8 +832,7 @@ static void inv_txf_add_16x8_dav1d(int16_t* dqcoeff, uint8_t* dst, int32_t strid
     }
 }
 
-static void inv_txf_add_16x16_dav1d(int16_t* dqcoeff, uint8_t* dst_r, int32_t stride_r, uint8_t* dst_w,
-                                    int32_t stride_w, const TxfmParam* txfm_param, const TranLow* dqcoeff32) {
+static void inv_txf_add_16x16_dav1d(int16_t* dqcoeff, uint8_t* dst_w, int32_t stride_w, const TxfmParam* txfm_param) {
     switch (txfm_param->tx_type) {
     case DCT_DCT:
         svt_dav1d_inv_txfm_add_dct_dct_16x16_8bpc_neon(dst_w, stride_w, dqcoeff, txfm_param->eob);
@@ -872,7 +871,7 @@ static void inv_txf_add_16x16_dav1d(int16_t* dqcoeff, uint8_t* dst_r, int32_t st
         svt_dav1d_inv_txfm_add_identity_dct_16x16_8bpc_neon(dst_w, stride_w, dqcoeff, txfm_param->eob);
         break;
     default:
-        svt_av1_inv_txfm_add_c(dqcoeff32, dst_r, stride_r, dst_w, stride_w, txfm_param);
+        assert(0);
     }
 }
 
@@ -4585,10 +4584,12 @@ static inline void lowbd_inv_txfm2d_add_no_identity_neon(const int32_t* input, u
 
 void svt_dav1d_inv_txfm_add_neon(const TranLow* dqcoeff, uint8_t* dst_r, int32_t stride_r, uint8_t* dst_w,
                                  int32_t stride_w, const TxfmParam* txfm_param) {
+#if CONFIG_ENABLE_LOSSLESS
     if (txfm_param->lossless) {
         svt_av1_inv_txfm_add_c(dqcoeff, dst_r, stride_r, dst_w, stride_w, txfm_param);
         return;
     }
+#endif
 
     const TxSize tx_size = txfm_param->tx_size;
     DECLARE_ALIGNED(32, int16_t, dqcoeff_16[MAX_TX_SQUARE]);
@@ -4666,7 +4667,7 @@ void svt_dav1d_inv_txfm_add_neon(const TranLow* dqcoeff, uint8_t* dst_r, int32_t
         pack_and_load_buffer_16x16(dqcoeff, in);
         transpose_s16_16x16(in, out);
         store_buffer_s16_16x16(out, dqcoeff_16);
-        inv_txf_add_16x16_dav1d(dqcoeff_16, dst_w, stride_w, dst_w, stride_w, txfm_param, dqcoeff);
+        inv_txf_add_16x16_dav1d(dqcoeff_16, dst_w, stride_w, txfm_param);
         break;
     case TX_8X8:
         pack_and_load_buffer_8x8(dqcoeff, in);

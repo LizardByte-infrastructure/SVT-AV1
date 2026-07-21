@@ -76,6 +76,9 @@
 #ifndef CONFIG_ENABLE_PALETTE
 #define CONFIG_ENABLE_PALETTE               0
 #endif
+#ifndef CONFIG_ENABLE_LOSSLESS
+#define CONFIG_ENABLE_LOSSLESS              0
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -159,6 +162,10 @@
 
 #ifndef CONFIG_ENABLE_PALETTE
 #define CONFIG_ENABLE_PALETTE               1
+#endif
+
+#ifndef CONFIG_ENABLE_LOSSLESS
+#define CONFIG_ENABLE_LOSSLESS             1
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every

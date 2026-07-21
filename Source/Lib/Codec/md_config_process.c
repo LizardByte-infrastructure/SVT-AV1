@@ -1023,6 +1023,15 @@ EbErrorType svt_aom_mode_decision_configuration_kernel_iter(void* context) {
     // Derive all_lossless; if super-resolution is used, such a frame will still NOT be lossless at the upscaled resolution.
     frm_hdr->all_lossless = frm_hdr->coded_lossless && av1_superres_unscaled(&(pcs->ppcs->av1_cm->frm_size));
 
+#if !CONFIG_ENABLE_LOSSLESS
+    // Lossless coding is not supported in this build configuration.
+    for (int segment_id = 0; segment_id < MAX_SEGMENTS; segment_id++) {
+        pcs->lossless[segment_id] = 0;
+    }
+    frm_hdr->coded_lossless = 0;
+    frm_hdr->all_lossless   = 0;
+#endif
+
     if (frm_hdr->coded_lossless) {
         pcs->ppcs->frm_hdr.delta_q_params.delta_q_present = 0;
         frm_hdr->quantization_params.delta_q_dc[PLANE_Y]  = 0;
