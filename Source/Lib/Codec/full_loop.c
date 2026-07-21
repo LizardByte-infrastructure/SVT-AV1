@@ -1756,6 +1756,7 @@ void svt_aom_inv_transform_recon_wrapper(PictureControlSet* pcs, ModeDecisionCon
                                          uint32_t rec_offset, uint32_t rec_stride, int32_t* rec_coeff_buffer,
                                          uint32_t coeff_offset, bool hbd, TxSize txsize, TxType transform_type,
                                          PlaneType component_type, uint32_t eob) {
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     if (hbd) {
         svt_aom_inv_transform_recon(rec_coeff_buffer + coeff_offset,
                                     CONVERT_TO_BYTEPTR(((uint16_t*)pred_buffer) + pred_offset),
@@ -1768,7 +1769,11 @@ void svt_aom_inv_transform_recon_wrapper(PictureControlSet* pcs, ModeDecisionCon
                                     component_type,
                                     eob,
                                     svt_av1_is_lossless_segment(pcs, ctx->blk_ptr->segment_id));
-    } else {
+    } else
+#else
+    (void)hbd;
+#endif
+    {
         svt_aom_inv_transform_recon8bit(rec_coeff_buffer + coeff_offset,
                                         pred_buffer + pred_offset,
                                         pred_stride,
