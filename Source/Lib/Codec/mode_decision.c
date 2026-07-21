@@ -3354,8 +3354,14 @@ static void inject_zz_backup_candidate(PictureControlSet* pcs, ModeDecisionConte
 }
 
 int svt_av1_allow_palette(int allow_palette, BlockSize bsize) {
+#if !CONFIG_ENABLE_PALETTE
+    (void)allow_palette;
+    (void)bsize;
+    return 0;
+#else
     assert(bsize < BLOCK_SIZES_ALL);
     return allow_palette && block_size_wide[bsize] <= 64 && block_size_high[bsize] <= 64 && bsize >= BLOCK_8X8;
+#endif
 }
 
 void search_palette_luma(PictureControlSet* pcs, ModeDecisionContext* ctx, PaletteInfo* palette_cand,
