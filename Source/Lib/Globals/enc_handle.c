@@ -3501,10 +3501,8 @@ static void set_mrp_ctrl(const SequenceControlSet* scs, MrpCtrls* mrp_ctrl, EncM
                 mrp_level = 0;
             }
         } else {
-            if (enc_mode <= ENC_M9) {
+            if (enc_mode <= ENC_M8) {
                 mrp_level = 6;
-            } else if (enc_mode <= ENC_M10) {
-                mrp_level = 9;
             } else {
                 mrp_level = 0;
             }
