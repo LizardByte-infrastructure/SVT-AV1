@@ -3547,10 +3547,14 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
 
     switch (transform_size) {
     case TX_64X32:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_64x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_64x32_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_64x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform64x32_N2_N4(coeff_buffer);
@@ -3558,10 +3562,14 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
         break;
 
     case TX_32X64:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_32x64_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_32x64_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_32x64_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform32x64_N2_N4(coeff_buffer);
@@ -3569,10 +3577,14 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
         break;
 
     case TX_64X16:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_64x16_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_64x16_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_64x16_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform64x16_N2_N4(coeff_buffer);
@@ -3580,10 +3592,14 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
         break;
 
     case TX_16X64:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_16x64_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_16x64_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_16x64_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform16x64_N2_N4(coeff_buffer);
@@ -3592,18 +3608,26 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
 
     case TX_32X16:
         // TTK
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_32x16_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_32x16_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_32x16_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
     case TX_16X32:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_16x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_16x32_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_16x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
@@ -3616,18 +3640,26 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
         break;
 
     case TX_32X8:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_32x8_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_32x8_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_32x8_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
     case TX_8X32:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_8x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_8x32_N4_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_8x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
     case TX_16X4:
@@ -3656,14 +3688,16 @@ static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t 
         break;
 
     case TX_32X32:
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
         if (transform_type == V_DCT || transform_type == H_DCT || transform_type == V_ADST ||
             transform_type == H_ADST || transform_type == V_FLIPADST || transform_type == H_FLIPADST) {
-            // Tahani: I believe those cases are never hit
+            // Non-DCT at 32x32 is forbidden by the ext-tx set (never hit); C fallback only.
             svt_aom_transform_two_d_32x32_N4_c(
                 residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        }
-
-        else {
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
             svt_av1_fwd_txfm2d_32x32_N4(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
@@ -3730,10 +3764,14 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
 
     switch (transform_size) {
     case TX_64X32:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_64x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_64x32_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_64x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform64x32(coeff_buffer);
@@ -3741,10 +3779,14 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
         break;
 
     case TX_32X64:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_32x64(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_32x64_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_32x64(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform32x64(coeff_buffer);
@@ -3752,10 +3794,14 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
         break;
 
     case TX_64X16:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_64x16(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_64x16_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_64x16(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform64x16(coeff_buffer);
@@ -3763,10 +3809,14 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
         break;
 
     case TX_16X64:
-        if (transform_type == DCT_DCT) {
-            svt_av1_fwd_txfm2d_16x64(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT) {
             svt_av1_fwd_txfm2d_16x64_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT); // non-DCT at large/rect tx forbidden by ext-tx set
+            svt_av1_fwd_txfm2d_16x64(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
         *three_quad_energy = svt_handle_transform16x64(coeff_buffer);
@@ -3775,18 +3825,26 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
 
     case TX_32X16:
         // TTK
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_32x16(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_32x16_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_32x16(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
     case TX_16X32:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_16x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_16x32_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_16x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
@@ -3799,18 +3857,26 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
         break;
 
     case TX_32X8:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_32x8(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_32x8_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_32x8(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
 
     case TX_8X32:
-        if ((transform_type == DCT_DCT) || (transform_type == IDTX)) {
-            svt_av1_fwd_txfm2d_8x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        } else {
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
+        if (transform_type != DCT_DCT && transform_type != IDTX) {
             svt_av1_fwd_txfm2d_8x32_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
+            svt_av1_fwd_txfm2d_8x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
         break;
     case TX_16X4:
@@ -3839,13 +3905,15 @@ static EbErrorType av1_estimate_transform_default(int16_t* residual_buffer, uint
         break;
 
     case TX_32X32:
+#if CONFIG_ENABLE_NON_DCT_LARGE_TX
         if (transform_type == V_DCT || transform_type == H_DCT || transform_type == V_ADST ||
             transform_type == H_ADST || transform_type == V_FLIPADST || transform_type == H_FLIPADST) {
-            // Tahani: I believe those cases are never hit
+            // Non-DCT at 32x32 is forbidden by the ext-tx set (never hit); C fallback only.
             svt_av1_transform_two_d_32x32_c(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
-        }
-
-        else {
+        } else
+#endif
+        {
+            assert(transform_type == DCT_DCT || transform_type == IDTX);
             svt_av1_fwd_txfm2d_32x32(residual_buffer, coeff_buffer, residual_stride, transform_type, bit_depth);
         }
 
