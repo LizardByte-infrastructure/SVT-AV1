@@ -1347,7 +1347,7 @@ static void copy_recon(PictureControlSet* pcs, ModeDecisionContext* ctx, BlkStru
     const bool           is_16bit = ctx->ed_ctx->is_16bit;
     EbPictureBufferDesc* recon_buffer;
     svt_aom_get_recon_pic(pcs, &recon_buffer, is_16bit);
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT) {
         uint32_t  recon_luma_offset = (ctx->blk_org_y * recon_buffer->y_stride) + ctx->blk_org_x;
         uint16_t* ep_recon          = ((uint16_t*)(recon_buffer->y_buffer)) + recon_luma_offset;
         uint16_t* md_recon          = (uint16_t*)(blk_ptr->recon_tmp->y_buffer);
@@ -1805,8 +1805,8 @@ static void encode_b(PictureControlSet* pcs, EncDecContext* ctx, BlkStruct* blk_
     if (is_inter_block(&blk_ptr->block_mi)) {
         perform_inter_coding_loop(pcs, ctx);
     } else if (is_intra_mode(blk_ptr->block_mi.mode)) {
-        if (pcs->scs->static_config.encoder_bit_depth > EB_EIGHT_BIT && pcs->hbd_md == 0 &&
-            blk_ptr->palette_size[0] > 0) {
+        if (SVT_EFFECTIVE_BIT_DEPTH(pcs->scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT &&
+            SVT_EFFECTIVE_HBD_MD(pcs->hbd_md) == 0 && blk_ptr->palette_size[0] > 0) {
             //MD was done on 8bit, scale  palette colors to 10bit
             for (uint8_t col = 0; col < blk_ptr->palette_size[0]; col++) {
                 blk_ptr->palette_info->pmi.palette_colors[col] *= 4;

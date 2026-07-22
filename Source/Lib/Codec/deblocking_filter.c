@@ -344,7 +344,7 @@ void svt_av1_filter_block_plane_vert(const PictureControlSet* const pcs, const i
     // TODO
     // when loop_filter_mode = 1, dblk is processed in encdec
     // 16 bit dblk for loop_filter_mode = 1 needs to enabled after 16bit encdec is done
-    bool           is_16bit   = scs->is_16bit_pipeline;
+    bool           is_16bit   = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
     const int32_t  row_step   = MI_SIZE >> MI_SIZE_LOG2;
     const uint32_t scale_horz = plane_ptr->subsampling_x;
     const uint32_t scale_vert = plane_ptr->subsampling_y;
@@ -470,7 +470,7 @@ void svt_av1_filter_block_plane_horz(const PictureControlSet* const pcs, const i
     SequenceControlSet* scs = pcs->scs;
     // when loop_filter_mode = 1, dblk is processed in encdec
     // 16 bit dblk for loop_filter_mode = 1 needs to enabled after 16bit encdec is done
-    bool           is_16bit   = scs->is_16bit_pipeline;
+    bool           is_16bit   = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
     const int32_t  col_step   = MI_SIZE >> MI_SIZE_LOG2;
     const uint32_t scale_horz = plane_ptr->subsampling_x;
     const uint32_t scale_vert = plane_ptr->subsampling_y;
@@ -622,7 +622,7 @@ void svt_aom_loop_filter_sb(EbPictureBufferDesc* frame_buffer, //reconpicture,
     pd[2].plane_type    = PLANE_TYPE_UV;
     pd[2].is_16bit      = frame_buffer->bit_depth > 8;
 
-    if (pcs->ppcs->scs->is_16bit_pipeline) {
+    if (SVT_EFFECTIVE_IS_16BIT_PIPELINE(pcs->ppcs->scs->is_16bit_pipeline)) {
         pd[0].is_16bit = pd[1].is_16bit = pd[2].is_16bit = true;
     }
 
@@ -741,7 +741,7 @@ static void svt_copy_buffer(EbPictureBufferDesc* src, EbPictureBufferDesc* dst, 
 
 uint64_t picture_sse_calculations(PictureControlSet* pcs, EbPictureBufferDesc* recon_ptr, int32_t plane) {
     SequenceControlSet* scs      = pcs->ppcs->scs;
-    bool                is_16bit = scs->is_16bit_pipeline;
+    bool                is_16bit = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
     assert(plane >= PLANE_Y && plane < MAX_PLANES);
     const uint32_t ss_x = scs->subsampling_x;
     const uint32_t ss_y = scs->subsampling_y;
@@ -791,7 +791,7 @@ static int64_t try_filter_frame(const EbPictureBufferDesc* sd, EbPictureBufferDe
         filter_level[0] = frm_hdr->loop_filter_params.filter_level[0];
     }
 
-    bool                 is_16bit = pcs->ppcs->scs->is_16bit_pipeline;
+    bool                 is_16bit = SVT_EFFECTIVE_IS_16BIT_PIPELINE(pcs->ppcs->scs->is_16bit_pipeline);
     EbPictureBufferDesc* recon_buffer;
     svt_aom_get_recon_pic(pcs, &recon_buffer, is_16bit);
 
@@ -861,7 +861,7 @@ static int32_t search_filter_level(EbPictureBufferDesc* sd, // source
     int32_t filt_mid    = clamp(lvl, min_filter_level, max_filter_level);
     int32_t filter_step = filt_mid < 16 ? 4 : filt_mid / 4;
 
-    bool                 is_16bit = pcs->ppcs->scs->is_16bit_pipeline;
+    bool                 is_16bit = SVT_EFFECTIVE_IS_16BIT_PIPELINE(pcs->ppcs->scs->is_16bit_pipeline);
     EbPictureBufferDesc* recon_buffer;
     svt_aom_get_recon_pic(pcs, &recon_buffer, is_16bit);
     // Sum squared error at each filter level
@@ -1069,7 +1069,8 @@ void svt_av1_pick_filter_level_by_q(PictureControlSet* pcs, uint8_t qindex, int3
                "or EB_TWELVE_BIT");
         return;
     }
-    if (scs->static_config.encoder_bit_depth != EB_EIGHT_BIT && frm_hdr->frame_type == KEY_FRAME) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) != EB_EIGHT_BIT &&
+        frm_hdr->frame_type == KEY_FRAME) {
         filt_guess -= 4;
     }
 
@@ -1153,8 +1154,8 @@ EbErrorType svt_av1_pick_filter_level(EbPictureBufferDesc* srcBuffer, // source 
         temp_lf_recon_desc_init_data.border       = padding;
         temp_lf_recon_desc_init_data.split_mode   = false;
         temp_lf_recon_desc_init_data.color_format = scs->static_config.encoder_color_format;
-        bool is_16bit                             = scs->static_config.encoder_bit_depth > 8 ? true : false;
-        if (scs->is_16bit_pipeline || is_16bit) {
+        bool is_16bit = SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > 8 ? true : false;
+        if (SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline) || is_16bit) {
             temp_lf_recon_desc_init_data.bit_depth = EB_SIXTEEN_BIT;
             EB_NEW(
                 pcs->temp_lf_recon_pic_16bit, svt_recon_picture_buffer_desc_ctor, (EbPtr)&temp_lf_recon_desc_init_data);
@@ -1202,8 +1203,9 @@ EbErrorType svt_av1_pick_filter_level(EbPictureBufferDesc* srcBuffer, // source 
 
         const int32_t last_frame_filter_level[4] = {
             lf->filter_level[0], lf->filter_level[1], lf->filter_level_u, lf->filter_level_v};
-        EbPictureBufferDesc* temp_lf_recon_buffer = scs->is_16bit_pipeline ? pcs->temp_lf_recon_pic_16bit
-                                                                           : pcs->temp_lf_recon_pic;
+        EbPictureBufferDesc* temp_lf_recon_buffer = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline)
+            ? pcs->temp_lf_recon_pic_16bit
+            : pcs->temp_lf_recon_pic;
 
         if (!do_y) {
             lf->filter_level[0] = lf->filter_level[1] = 0;

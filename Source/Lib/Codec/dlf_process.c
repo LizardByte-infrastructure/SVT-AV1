@@ -69,8 +69,8 @@ EbErrorType svt_aom_dlf_kernel_iter(void* context) {
     PictureParentControlSet* ppcs = pcs->ppcs;
     scs                           = pcs->scs;
 
-    bool is_16bit = scs->is_16bit_pipeline;
-    if (is_16bit && scs->static_config.encoder_bit_depth == EB_EIGHT_BIT) {
+    bool is_16bit = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
+    if (is_16bit && SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) == EB_EIGHT_BIT) {
         svt_aom_convert_pic_8bit_to_16bit(pcs->ppcs->enhanced_pic,
                                           pcs->input_frame16bit,
                                           pcs->ppcs->scs->subsampling_x,

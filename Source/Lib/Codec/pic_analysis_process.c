@@ -461,7 +461,7 @@ static int32_t apply_denoise_2d(SequenceControlSet* scs, PictureParentControlSet
     if (svt_aom_denoise_and_model_run(denoise_and_model,
                                       inputPicturePointer,
                                       &pcs->frm_hdr.film_grain_params,
-                                      scs->static_config.encoder_bit_depth > EB_EIGHT_BIT)) {}
+                                      SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT)) {}
 
     EB_DELETE(denoise_and_model);
 
@@ -744,9 +744,7 @@ static void pad_2b_compressed_input_picture(uint8_t* src_pic, uint32_t src_strid
  ************************************************/
 void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlSet*  scs,
                                                                 EbPictureBufferDesc* input_pic) {
-#if CONFIG_ENABLE_HIGH_BIT_DEPTH
-    bool is16_bit_input = scs->static_config.encoder_bit_depth > EB_EIGHT_BIT;
-#endif
+    bool is16_bit_input = SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT;
 
     uint32_t       color_format  = input_pic->color_format;
     const uint16_t subsampling_x = (color_format == EB_YUV444 ? 0 : 1);
@@ -778,7 +776,6 @@ void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlS
                           scs->pad_bottom >> subsampling_y);
     }
 
-#if CONFIG_ENABLE_HIGH_BIT_DEPTH
     if (is16_bit_input) {
         uint32_t comp_stride_y = input_pic->y_stride / 4;
 
@@ -811,7 +808,6 @@ void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlS
                                             scs->pad_bottom >> subsampling_y);
         }
     }
-#endif
 
     return;
 }
@@ -823,7 +819,7 @@ void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions(SequenceControlS
  ************************************************/
 void svt_aom_pad_picture_to_multiple_of_min_blk_size_dimensions_16bit(SequenceControlSet*  scs,
                                                                       EbPictureBufferDesc* input_pic) {
-    assert(scs->static_config.encoder_bit_depth > EB_EIGHT_BIT);
+    assert(SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT);
 
     uint32_t      color_format  = input_pic->color_format;
     const uint8_t subsampling_x = (color_format == EB_YUV444 ? 0 : 1);
@@ -1565,7 +1561,7 @@ void svt_aom_pad_input_pictures(SequenceControlSet* scs, EbPictureBufferDesc* in
     uint32_t comp_stride_y  = input_pic->y_stride / 4;
     uint32_t comp_stride_uv = input_pic->u_stride / 4;
 
-    if (scs->static_config.encoder_bit_depth > EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT) {
         if (input_pic->y_buffer_bit_inc) {
             svt_aom_generate_padding_compressed_10bit(input_pic->y_buffer_bit_inc,
                                                       comp_stride_y,
@@ -1597,7 +1593,7 @@ void svt_aom_pad_input_pictures(SequenceControlSet* scs, EbPictureBufferDesc* in
     }
 
     // PAD the bit inc buffer in 10bit
-    if (scs->static_config.encoder_bit_depth > EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) > EB_EIGHT_BIT) {
         if (input_pic->u_buffer_bit_inc) {
             svt_aom_generate_padding_compressed_10bit(input_pic->u_buffer_bit_inc,
                                                       comp_stride_uv,

@@ -484,7 +484,7 @@ static void sb_setup_lambda(PictureControlSet* pcs, SuperBlock* sb_ptr) {
     }
     assert(base_block_count > 0);
 
-    EbBitDepth bit_depth   = pcs->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT;
+    EbBitDepth bit_depth   = SVT_EFFECTIVE_HBD_MD(pcs->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT;
     double     orig_rdmult = svt_aom_compute_rd_mult(
         pcs, ppcs->frm_hdr.quantization_params.base_q_idx, ppcs->frm_hdr.quantization_params.base_q_idx, bit_depth);
     double new_rdmult = svt_aom_compute_rd_mult(

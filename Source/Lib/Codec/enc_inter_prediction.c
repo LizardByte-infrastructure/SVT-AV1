@@ -319,8 +319,8 @@ static void model_rd_with_curvfit(PictureControlSet* pcs, BlockSize plane_bsize,
     const int           dequant_shift   = 3;
     int32_t             current_q_index = pcs->ppcs->frm_hdr.quantization_params.base_q_idx;
     SequenceControlSet* scs             = pcs->scs;
-    Dequants* const     dequants        = ctx->hbd_md ? &scs->enc_ctx->deq_bd : &scs->enc_ctx->deq_8bit;
-    int16_t             quantizer       = dequants->y_dequant_qtx[current_q_index][1];
+    Dequants* const     dequants  = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? &scs->enc_ctx->deq_bd : &scs->enc_ctx->deq_8bit;
+    int16_t             quantizer = dequants->y_dequant_qtx[current_q_index][1];
 
     const int qstep = AOMMAX(quantizer >> dequant_shift, 1);
 
@@ -424,7 +424,8 @@ int8_t svt_av1_wedge_sign_from_residuals_c(const int16_t* ds, const uint8_t* m, 
 static void pick_wedge(PictureControlSet* pcs, ModeDecisionContext* ctx, const BlockSize bsize, const uint8_t* const p0,
                        const int16_t* const residual1, const int16_t* const diff10, int8_t* const best_wedge_sign,
                        int8_t* const best_wedge_index) {
-    uint8_t              hbd_md      = ctx->hbd_md == EB_DUAL_BIT_MD ? EB_8_BIT_MD : ctx->hbd_md;
+    uint8_t              hbd_md      = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) == EB_DUAL_BIT_MD ? EB_8_BIT_MD
+                                                                                           : SVT_EFFECTIVE_HBD_MD(ctx->hbd_md);
     uint32_t             full_lambda = hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
     EbPictureBufferDesc* src_pic     = hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
     const int            bw          = block_size_wide[bsize];
@@ -491,7 +492,8 @@ int64_t pick_wedge_fixed_sign(PictureControlSet* pcs, ModeDecisionContext* ctx, 
                               int8_t* const best_wedge_index) {
     //const MACROBLOCKD *const xd = &x->e_mbd;
 
-    uint32_t  full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t  full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                              : ctx->full_lambda_md[EB_8_BIT_MD];
     const int bw          = block_size_wide[bsize];
     const int bh          = block_size_high[bsize];
     const int N           = bw * bh;
@@ -538,7 +540,8 @@ static void pick_interinter_wedge(PictureControlSet* pcs, ModeDecisionContext* c
 static void pick_interinter_seg(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                 InterInterCompoundData* interinter_comp, const BlockSize bsize, const uint8_t* const p0,
                                 const uint8_t* const p1, const int16_t* const residual1, const int16_t* const diff10) {
-    uint8_t           hbd_md      = ctx->hbd_md == EB_DUAL_BIT_MD ? EB_8_BIT_MD : ctx->hbd_md;
+    uint8_t           hbd_md      = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) == EB_DUAL_BIT_MD ? EB_8_BIT_MD
+                                                                                        : SVT_EFFECTIVE_HBD_MD(ctx->hbd_md);
     uint32_t          full_lambda = hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
     const int         bw          = block_size_wide[bsize];
     const int         bh          = block_size_high[bsize];
@@ -634,7 +637,8 @@ void model_rd_for_sb_with_curvfit(PictureControlSet* pcs, ModeDecisionContext* c
     // we need to divide by 8 before sending to modeling function.
     const int bd_round = 0;
 
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                             : ctx->full_lambda_md[EB_8_BIT_MD];
 
     int64_t rate_sum = 0;
     int64_t dist_sum = 0;
@@ -645,7 +649,7 @@ void model_rd_for_sb_with_curvfit(PictureControlSet* pcs, ModeDecisionContext* c
         int64_t         dist, sse;
         int             rate;
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             sse = svt_aom_highbd_sse(src_buf, src_stride, pred_buf, pred_stride, bw, bh);
         } else
 #endif
@@ -1825,7 +1829,7 @@ void svt_aom_precompute_obmc_data(PictureControlSet* pcs, ModeDecisionContext* c
     int      dst_stride1[MAX_PLANES] = {ctx->blk_geom->bwidth, ctx->blk_geom->bwidth, ctx->blk_geom->bwidth};
     int      dst_stride2[MAX_PLANES] = {ctx->blk_geom->bwidth, ctx->blk_geom->bwidth, ctx->blk_geom->bwidth};
 
-    if (ctx->hbd_md) {
+    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         if (component_mask & PICTURE_BUFFER_DESC_LUMA_MASK) {
             ctx->obmc_is_luma_neigh_10bit = true;
         }
@@ -1853,7 +1857,7 @@ void svt_aom_precompute_obmc_data(PictureControlSet* pcs, ModeDecisionContext* c
                                     mi_col,
                                     dst_buf1,
                                     dst_stride1,
-                                    ctx->hbd_md,
+                                    SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                     ctx->obmc_conv_buf);
     build_prediction_by_left_preds(component_mask,
                                    ctx->blk_geom->bsize,
@@ -1863,7 +1867,7 @@ void svt_aom_precompute_obmc_data(PictureControlSet* pcs, ModeDecisionContext* c
                                    mi_col,
                                    dst_buf2,
                                    dst_stride2,
-                                   ctx->hbd_md,
+                                   SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                    ctx->obmc_conv_buf);
     ctx->obmc_neighbor_luma_pred_ready   = component_mask == PICTURE_BUFFER_DESC_FULL_MASK ||
             component_mask == PICTURE_BUFFER_DESC_LUMA_MASK
@@ -2022,8 +2026,8 @@ static void model_rd_for_sb(PictureControlSet* pcs, EbPictureBufferDesc* predict
         uint32_t        rate;
         uint64_t        dist;
         const uint8_t   current_q_index = pcs->ppcs->frm_hdr.quantization_params.base_q_idx;
-        Dequants* const dequants        = ctx->hbd_md ? &scs->enc_ctx->deq_bd : &scs->enc_ctx->deq_8bit;
-        int16_t         quantizer       = dequants->y_dequant_qtx[current_q_index][1];
+        Dequants* const dequants  = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? &scs->enc_ctx->deq_bd : &scs->enc_ctx->deq_8bit;
+        int16_t         quantizer = dequants->y_dequant_qtx[current_q_index][1];
         model_rd_from_sse(plane == 0 ? ctx->blk_geom->bsize : ctx->blk_geom->bsize_uv,
                           quantizer,
                           bit_depth,
@@ -2121,7 +2125,8 @@ static void interpolation_filter_search(PictureControlSet* pcs, ModeDecisionCont
              */
             const uint8_t is_pred_buffer_ready = (cand_bf->valid_luma_pred &&
                                                   cand_bf->cand->block_mi.interp_filters == org_interp_filters &&
-                                                  ctx->md_stage > MD_STAGE_0 && encoder_bit_depth == EB_EIGHT_BIT);
+                                                  ctx->md_stage > MD_STAGE_0 &&
+                                                  SVT_EFFECTIVE_BIT_DEPTH(encoder_bit_depth) == EB_EIGHT_BIT);
 
             if (is_pred_buffer_ready == 0) {
                 svt_aom_inter_prediction(
@@ -3537,7 +3542,8 @@ EbErrorType svt_aom_inter_prediction(SequenceControlSet* scs, PictureControlSet*
 
 bool svt_aom_calc_pred_masked_compound(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidate* cand) {
     SequenceControlSet*  scs     = pcs->scs;
-    uint8_t              hbd_md  = ctx->hbd_md == EB_DUAL_BIT_MD ? EB_8_BIT_MD : ctx->hbd_md;
+    uint8_t              hbd_md  = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) == EB_DUAL_BIT_MD ? EB_8_BIT_MD
+                                                                                       : SVT_EFFECTIVE_HBD_MD(ctx->hbd_md);
     EbPictureBufferDesc* src_pic = hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
     uint32_t             bwidth  = ctx->blk_geom->bwidth;
     uint32_t             bheight = ctx->blk_geom->bheight;

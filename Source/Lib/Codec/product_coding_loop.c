@@ -242,7 +242,8 @@ static void mode_decision_update_neighbor_arrays(PictureControlSet* pcs, ModeDec
             ctx->txfm_context_array, &bh, org_x, org_y, bwidth, bheight, NEIGHBOR_ARRAY_UNIT_LEFT_MASK);
     }
     if (!ctx->skip_intra || ctx->inter_intra_comp_ctrls.enabled) {
-        if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1) {
+        if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+            !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1) {
             // copy HBD
             svt_aom_update_recon_neighbor_array16bit(ctx->luma_recon_na_16bit,
                                                      ctx->blk_ptr->neigh_top_recon_16bit[0],
@@ -330,7 +331,7 @@ static void mode_decision_update_neighbor_arrays(PictureControlSet* pcs, ModeDec
                                                     bwidth_uv,
                                                     bheight_uv);
             }
-        } else if (!ctx->hbd_md) {
+        } else if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             svt_aom_update_recon_neighbor_array(ctx->recon_neigh_y,
                                                 ctx->blk_ptr->neigh_top_recon[0],
                                                 ctx->blk_ptr->neigh_left_recon[0],
@@ -441,7 +442,8 @@ void svt_aom_copy_neighbour_arrays(PictureControlSet* pcs, ModeDecisionContext* 
                               NEIGHBOR_ARRAY_UNIT_TOP_AND_LEFT_ONLY_MASK);
 
     // if using 8bit MD and bypassing encdec, need to save 8bit and 10bit recon
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1) {
         // Copy 10bit arrays
         svt_aom_copy_neigh_arr(pcs->md_luma_recon_na_16bit[src_idx][tile_idx],
                                pcs->md_luma_recon_na_16bit[dst_idx][tile_idx],
@@ -525,7 +527,7 @@ void svt_aom_copy_neighbour_arrays(PictureControlSet* pcs, ModeDecisionContext* 
                                    bheight_uv,
                                    NEIGHBOR_ARRAY_UNIT_FULL_MASK);
         }
-    } else if (!ctx->hbd_md) {
+    } else if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         svt_aom_copy_neigh_arr(pcs->md_luma_recon_na[src_idx][tile_idx],
                                pcs->md_luma_recon_na[dst_idx][tile_idx],
                                blk_org_x,
@@ -717,18 +719,18 @@ void av1_perform_inverse_transform_recon_luma(PictureControlSet* pcs, ModeDecisi
                 cand_bf->pred->y_buffer,
                 txb_origin_index,
                 cand_bf->pred->y_stride,
-                ctx->hbd_md ? (uint8_t*)ctx->cfl_temp_luma_recon16bit : ctx->cfl_temp_luma_recon,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? (uint8_t*)ctx->cfl_temp_luma_recon16bit : ctx->cfl_temp_luma_recon,
                 rec_luma_offset,
                 cand_bf->recon->y_stride,
                 (int32_t*)cand_bf->rec_coeff->y_buffer,
                 txb_1d_offset,
-                ctx->hbd_md,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                 tx_size,
                 cand_bf->cand->transform_type[txb_itr],
                 PLANE_TYPE_Y,
                 (uint32_t)cand_bf->eob.y[txb_itr]);
         } else {
-            if (ctx->hbd_md) {
+            if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 svt_av1_copy_wxh_16bit((uint16_t*)cand_bf->pred->y_buffer + txb_origin_index,
                                        cand_bf->pred->y_stride,
                                        ctx->cfl_temp_luma_recon16bit + rec_luma_offset,
@@ -797,7 +799,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
         // cand_bf->recon is only used to update other buffers after this point.
         if (ctx->bypass_encdec && ctx->pd_pass == PD_PASS_1) {
             if (ctx->fixed_partition) {
-                svt_aom_get_recon_pic(pcs, &recon_buffer, ctx->hbd_md);
+                svt_aom_get_recon_pic(pcs, &recon_buffer, SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
                 uint16_t org_x  = ctx->blk_org_x + tx_org[blk_geom->bsize][is_inter][tx_depth][txb_itr].x;
                 uint16_t org_y  = ctx->blk_org_y + tx_org[blk_geom->bsize][is_inter][tx_depth][txb_itr].y;
                 rec_luma_offset = (org_y)*recon_buffer->y_stride + (org_x);
@@ -824,14 +826,14 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                                 recon_buffer->y_stride << ctx->mds_subres_step,
                                                 (int32_t*)cand_bf->rec_coeff->y_buffer,
                                                 txb_1d_offset,
-                                                ctx->hbd_md,
+                                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                 tx_size,
                                                 cand_bf->cand->transform_type[txb_itr],
                                                 PLANE_TYPE_Y,
                                                 (uint32_t)cand_bf->eob.y[txb_itr]);
             if (ctx->mds_subres_step == 2) {
                 for (int i = 0; i < (txb_height * 4); i += 4) {
-                    if (ctx->hbd_md) {
+                    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                         svt_memcpy(
                             ((uint16_t*)recon_buffer->y_buffer) + rec_luma_offset + (i + 1) * recon_buffer->y_stride,
                             ((uint16_t*)recon_buffer->y_buffer) + rec_luma_offset + i * recon_buffer->y_stride,
@@ -858,7 +860,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                 }
             } else if (ctx->mds_subres_step) {
                 for (int i = 0; i < (txb_height * 2); i += 2) {
-                    if (ctx->hbd_md) {
+                    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                         svt_memcpy(
                             ((uint16_t*)recon_buffer->y_buffer) + rec_luma_offset + (i + 1) * recon_buffer->y_stride,
                             ((uint16_t*)recon_buffer->y_buffer) + rec_luma_offset + i * recon_buffer->y_stride,
@@ -877,7 +879,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                    rec_luma_offset,
                                    txb_width,
                                    txb_height << ctx->mds_subres_step,
-                                   ctx->hbd_md);
+                                   SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
         }
 
         //CHROMA
@@ -901,7 +903,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                                         recon_buffer->u_stride,
                                                         (int32_t*)cand_bf->rec_coeff->u_buffer,
                                                         txb_1d_offset_uv,
-                                                        ctx->hbd_md,
+                                                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                         tx_size_uv,
                                                         cand_bf->cand->transform_type_uv,
                                                         PLANE_TYPE_UV,
@@ -913,7 +915,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                             rec_cb_offset,
                                             chroma_txb_width,
                                             chroma_txb_height,
-                                            ctx->hbd_md);
+                                            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
                 }
 
                 if (ctx->blk_ptr->v_has_coeff & (1 << txb_itr)) {
@@ -927,7 +929,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                                         recon_buffer->v_stride,
                                                         (int32_t*)cand_bf->rec_coeff->v_buffer,
                                                         txb_1d_offset_uv,
-                                                        ctx->hbd_md,
+                                                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                         tx_size_uv,
                                                         cand_bf->cand->transform_type_uv,
                                                         PLANE_TYPE_UV,
@@ -939,7 +941,7 @@ static void av1_perform_inverse_transform_recon(PictureControlSet* pcs, ModeDeci
                                             rec_cr_offset,
                                             chroma_txb_width,
                                             chroma_txb_height,
-                                            ctx->hbd_md);
+                                            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
                 }
 
                 txb_1d_offset_uv += chroma_txb_width * chroma_txb_height;
@@ -1041,9 +1043,10 @@ static void obmc_trans_face_off(ModeDecisionCandidateBuffer* cand_bf, PictureCon
     // 10bit lambda is shifted left by 4 to account for the difference in range between 8bit/10bit SSE. The 10bit variance function
     // automatically shifts the variance so the variance of 10bit will match the range of 8bit. Therefore, the shifted lambda is not
     // needed, and as such, the shift is nullified here so the lambda/distortion are properly proportioned.
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] >> 4 : ctx->full_lambda_md[EB_8_BIT_MD];
-    ModeDecisionCandidate* cand = cand_bf->cand;
-    EbPictureBufferDesc*   pred = cand_bf->pred;
+    uint32_t               full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD] >> 4
+                                                                           : ctx->full_lambda_md[EB_8_BIT_MD];
+    ModeDecisionCandidate* cand        = cand_bf->cand;
+    EbPictureBufferDesc*   pred        = cand_bf->pred;
 
     if (is_inter_singleref_mode(cand->block_mi.mode)) {
         MvReferenceFrame rf[2] = {cand->block_mi.ref_frame[0], cand->block_mi.ref_frame[1]};
@@ -1092,10 +1095,10 @@ static void obmc_trans_face_off(ModeDecisionCandidateBuffer* cand_bf, PictureCon
 
             // Prediction
             ctx->uv_intra_comp_only = false;
-            svt_aom_inter_pu_prediction_av1_obmc(ctx->hbd_md, ctx, pcs, cand_bf);
+            svt_aom_inter_pu_prediction_av1_obmc(SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
 
             // Distortion
-            if (!ctx->hbd_md) {
+            if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 const AomVarianceFnPtr* fn_ptr = &svt_aom_mefn_ptr[ctx->blk_geom->bsize];
                 unsigned int            sse;
                 uint8_t*                pred_y = pred->y_buffer;
@@ -1173,7 +1176,7 @@ uint32_t hadamard_path(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionContext
                                     (int16_t*)res_ptr,
                                     res_idx,
                                     cand_bf->residual->y_stride,
-                                    ctx->hbd_md,
+                                    SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                     txbw,
                                     txbh);
 
@@ -1210,13 +1213,14 @@ void fast_loop_core(ModeDecisionCandidateBuffer* cand_bf, PictureControlSet* pcs
     // 10bit lambda is shifted left by 4 to account for the difference in range between 8bit/10bit SSE. The 10bit variance function
     // automatically shifts the variance so the variance of 10bit will match the range of 8bit. Therefore, the shifted lambda is not
     // needed, and as such, the shift is nullified here so the lambda/distortion are properly proportioned.
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] >> 4 : ctx->full_lambda_md[EB_8_BIT_MD];
-    ModeDecisionCandidate* cand = cand_bf->cand;
-    EbPictureBufferDesc*   pred = cand_bf->pred;
+    uint32_t               full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD] >> 4
+                                                                           : ctx->full_lambda_md[EB_8_BIT_MD];
+    ModeDecisionCandidate* cand        = cand_bf->cand;
+    EbPictureBufferDesc*   pred        = cand_bf->pred;
     // Prediction
     ctx->uv_intra_comp_only = false;
     product_prediction_fun_table[is_inter_mode(cand->block_mi.mode) || cand->block_mi.use_intrabc](
-        ctx->hbd_md, ctx, pcs, cand_bf);
+        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
     if (ctx->mds0_use_hadamard_blk) {
         uint32_t satd           = hadamard_path(cand_bf, ctx, input_pic, loc);
         cand_bf->luma_fast_dist = satd;
@@ -1224,7 +1228,7 @@ void fast_loop_core(ModeDecisionCandidateBuffer* cand_bf, PictureControlSet* pcs
         luma_fast_dist = cand_bf->luma_fast_dist << 4;
     } else {
         // Distortion
-        if (!ctx->hbd_md) {
+        if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             const AomVarianceFnPtr* fn_ptr = &svt_aom_mefn_ptr[ctx->blk_geom->bsize];
             unsigned int            sse;
             uint8_t*                pred_y = pred->y_buffer;
@@ -2305,7 +2309,8 @@ static void md_sq_motion_search(PictureControlSet* pcs, ModeDecisionContext* ctx
                        hbd_md);
     // Identify potential high active block(s) and ME failure using 2 checks : (1) high ME_MV distortion, (2) active co - located block for non - intra ref(Temporal - MV(s)) or active surrounding block(s) for intra ref(Spatial - MV(s))
     if (ctx->blk_geom->sq_size <= 64) {
-        uint32_t fast_lambda = ctx->hbd_md ? ctx->fast_lambda_md[EB_10_BIT_MD] : ctx->fast_lambda_md[EB_8_BIT_MD];
+        uint32_t fast_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->fast_lambda_md[EB_10_BIT_MD]
+                                                                 : ctx->fast_lambda_md[EB_8_BIT_MD];
 
         // Check if pa_me distortion is above the per-pixel threshold.  Rate is set to 16.
         if (RDCOST(fast_lambda, 16, pa_me_cost) >
@@ -2699,7 +2704,8 @@ static void read_refine_me_mvs_light_pd1(PictureControlSet* pcs, EbPictureBuffer
                 // -------
                 // Use scaled references if resolution of the reference is different from that of the input
                 // -------
-                svt_aom_use_scaled_rec_refs_if_needed(pcs, input_pic, ref_obj, &ref_pic, ctx->hbd_md);
+                svt_aom_use_scaled_rec_refs_if_needed(
+                    pcs, input_pic, ref_obj, &ref_pic, SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
 
                 const Mv* me_mv_array_base = me_results->me_mv_array +
                     (ctx->me_block_offset * pcs->ppcs->pa_me_data->max_refs + ref);
@@ -3350,7 +3356,7 @@ static void av1_cost_calc_cfl(PictureControlSet* pcs, ModeDecisionCandidateBuffe
                                                          CFL_PRED_U); // once for U, once for V
         assert(chroma_width * CFL_BUF_LINE + chroma_height <= CFL_BUF_SQUARE);
 
-        if (!ctx->hbd_md) {
+        if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             svt_cfl_predict_lbd(ctx->pred_buf_q3,
                                 &(cand_bf->pred->u_buffer[blk_chroma_origin_index]),
                                 cand_bf->pred->u_stride,
@@ -3382,7 +3388,7 @@ static void av1_cost_calc_cfl(PictureControlSet* pcs, ModeDecisionCandidateBuffe
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 chroma_width,
                                 chroma_height);
         svt_aom_full_loop_uv(pcs,
@@ -3424,7 +3430,7 @@ static void av1_cost_calc_cfl(PictureControlSet* pcs, ModeDecisionCandidateBuffe
                                                        CFL_PRED_V); // once for U, once for V
         assert(chroma_width * CFL_BUF_LINE + chroma_height <= CFL_BUF_SQUARE);
 
-        if (!ctx->hbd_md) {
+        if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             svt_cfl_predict_lbd(ctx->pred_buf_q3,
                                 &(cand_bf->pred->v_buffer[blk_chroma_origin_index]),
                                 cand_bf->pred->v_stride,
@@ -3456,7 +3462,7 @@ static void av1_cost_calc_cfl(PictureControlSet* pcs, ModeDecisionCandidateBuffe
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 chroma_width,
                                 chroma_height);
         svt_aom_full_loop_uv(pcs,
@@ -3493,7 +3499,8 @@ static uint64_t md_cfl_rd_pick_alpha(PictureControlSet* pcs, ModeDecisionCandida
     uint64_t full_dist[DIST_TOTAL][DIST_CALC_TOTAL];
     uint64_t coeff_bits;
 
-    uint32_t      full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t      full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                  : ctx->full_lambda_md[EB_8_BIT_MD];
     const int64_t mode_rd     = RDCOST(
         full_lambda,
         (uint64_t)ctx->md_rate_est_ctx->intra_uv_mode_fac_bits[CFL_ALLOWED][cand_bf->cand->block_mi.mode][UV_CFL_PRED],
@@ -3632,7 +3639,7 @@ static void compute_cfl_ac_components(PictureControlSet* pcs, ModeDecisionContex
     const uint32_t chroma_height   = blk_geom->bheight_uv;
 
     // Down sample Luma
-    if (!ctx->hbd_md) {
+    if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         svt_cfl_luma_subsampling_420_lbd(
             &(ctx->cfl_temp_luma_recon[rec_luma_offset]),
             cand_bf->recon->y_stride,
@@ -3674,7 +3681,8 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
     const int8_t           non_cfl_angle_delta = cand_bf->cand->block_mi.angle_delta[PLANE_TYPE_UV];
     const TxType           non_cfl_tx_type     = cand_bf->cand->transform_type_uv;
     if (!ctx->ind_uv_avail) {
-        uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+        uint32_t full_lambda                    = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                                    : ctx->full_lambda_md[EB_8_BIT_MD];
         cand_bf->cand->block_mi.cfl_alpha_idx   = 0;
         cand_bf->cand->block_mi.cfl_alpha_signs = 0;
         const uint64_t fast_rate                = svt_aom_get_intra_uv_fast_rate(pcs, ctx, cand_bf, 0);
@@ -3689,7 +3697,7 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -3703,7 +3711,7 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -3739,7 +3747,8 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
     if (non_cfl_uv_mode != UV_DC_PRED) {
         ctx->uv_intra_comp_only = true;
         assert(ctx->mds_do_chroma);
-        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
     }
 
     // Compute AC component of CFL prediction
@@ -3778,7 +3787,7 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
         const uint32_t chroma_height = ctx->blk_geom->bheight_uv;
         assert(chroma_height * CFL_BUF_LINE + chroma_width <= CFL_BUF_SQUARE);
 
-        if (!ctx->hbd_md) {
+        if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             svt_cfl_predict_lbd(ctx->pred_buf_q3,
                                 &(cand_bf->pred->u_buffer[blk_chroma_origin_index]),
                                 cand_bf->pred->u_stride,
@@ -3824,7 +3833,8 @@ static void cfl_prediction(PictureControlSet* pcs, ModeDecisionCandidateBuffer* 
         if (non_cfl_uv_mode != UV_DC_PRED) {
             ctx->uv_intra_comp_only = true;
             assert(ctx->mds_do_chroma);
-            product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+            product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         }
     }
 }
@@ -3837,7 +3847,8 @@ static void check_best_indepedant_cfl(PictureControlSet* pcs, EbPictureBufferDes
                                       uint64_t cb_full_distortion[DIST_TOTAL][DIST_CALC_TOTAL],
                                       uint64_t cr_full_distortion[DIST_TOTAL][DIST_CALC_TOTAL], uint64_t* cb_coeff_bits,
                                       uint64_t* cr_coeff_bits) {
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                             : ctx->full_lambda_md[EB_8_BIT_MD];
     assert(IMPLIES(cand_bf->cand->block_mi.filter_intra_mode != FILTER_INTRA_MODES,
                    cand_bf->cand->block_mi.mode == DC_PRED));
     FrameHeader* frm_hdr     = &pcs->ppcs->frm_hdr;
@@ -3895,7 +3906,8 @@ static void check_best_indepedant_cfl(PictureControlSet* pcs, EbPictureBufferDes
         *cr_coeff_bits = 0;
 
         assert(ctx->mds_do_chroma);
-        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         // Cb Residual
         svt_aom_residual_kernel(input_pic->u_buffer,
                                 input_cb_origin_in_index,
@@ -3906,7 +3918,7 @@ static void check_best_indepedant_cfl(PictureControlSet* pcs, EbPictureBufferDes
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -3920,7 +3932,7 @@ static void check_best_indepedant_cfl(PictureControlSet* pcs, EbPictureBufferDes
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 blk_chroma_origin_index,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
         svt_aom_full_loop_uv(pcs,
@@ -3955,7 +3967,7 @@ static void av1_intra_luma_prediction(ModeDecisionContext* ctx, PictureControlSe
     uint8_t top_neigh_array[(64 * 2 + 1) << 1];
     uint8_t left_neigh_array[(64 * 2 + 1) << 1];
 
-    const bool           is_16bit    = !!ctx->hbd_md;
+    const bool           is_16bit    = !!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md);
     const PredictionMode mode        = cand_bf->cand->block_mi.mode;
     const IntraSize      intra_size  = cand_bf->cand->block_mi.angle_delta[PLANE_TYPE_Y] == 0 ? svt_aom_intra_unit[mode]
                                                                                               : (IntraSize){2, 2};
@@ -4003,7 +4015,7 @@ static void av1_intra_luma_prediction(ModeDecisionContext* ctx, PictureControlSe
                                 tx_org[ctx->blk_geom->bsize][is_inter][ctx->tx_depth][ctx->txb_itr].x,
                                 tx_org[ctx->blk_geom->bsize][is_inter][ctx->tx_depth][ctx->txb_itr].y,
                                 &pcs->scs->seq_header,
-                                ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT);
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT);
 }
 
 static void tx_search_update_recon_sample_neighbor_array(NeighborArrayUnit*   lumaReconSampleNeighborArray,
@@ -4056,7 +4068,7 @@ static void tx_initialize_neighbor_arrays(PictureControlSet* pcs, ModeDecisionCo
     uint16_t tile_idx = ctx->tile_index;
     // Set recon neighbor array to be used @ intra compensation
     if (!is_inter) {
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             ctx->tx_search_luma_recon_na_16bit = ctx->tx_depth == 2
                 ? pcs->md_tx_depth_2_luma_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx]
                 : ctx->tx_depth == 1 ? pcs->md_tx_depth_1_luma_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx]
@@ -4083,7 +4095,7 @@ void tx_update_neighbor_arrays(PictureControlSet* pcs, ModeDecisionContext* ctx,
         const int    tx_height = tx_size_high[tx_size];
         if (!is_inter) {
             tx_search_update_recon_sample_neighbor_array(
-                ctx->hbd_md ? ctx->tx_search_luma_recon_na_16bit : ctx->tx_search_luma_recon_na,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->tx_search_luma_recon_na_16bit : ctx->tx_search_luma_recon_na,
                 cand_bf->recon,
                 tx_org[ctx->blk_geom->bsize][is_inter][ctx->tx_depth][ctx->txb_itr].x,
                 tx_org[ctx->blk_geom->bsize][is_inter][ctx->tx_depth][ctx->txb_itr].y,
@@ -4091,7 +4103,7 @@ void tx_update_neighbor_arrays(PictureControlSet* pcs, ModeDecisionContext* ctx,
                 ctx->blk_org_y + tx_org[ctx->blk_geom->bsize][is_inter][ctx->tx_depth][ctx->txb_itr].y,
                 tx_width,
                 tx_height,
-                ctx->hbd_md);
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
         }
         int8_t dc_sign_level_coeff = cand_bf->quant_dc.y[ctx->txb_itr];
         svt_aom_neighbor_array_unit_mode_write_pu(
@@ -4111,7 +4123,7 @@ static void tx_reset_neighbor_arrays(PictureControlSet* pcs, ModeDecisionContext
     uint16_t tile_idx = ctx->tile_index;
     if (tx_depth) {
         if (!is_inter) {
-            if (ctx->hbd_md) {
+            if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 if (tx_depth == 2) {
                     svt_aom_copy_neigh_arr(pcs->md_luma_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx],
                                            pcs->md_tx_depth_2_luma_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx],
@@ -4210,7 +4222,7 @@ static void copy_txt_data(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionCont
            (tx_width * tx_height * sizeof(uint32_t)));
     // copy recon_ptr
     EbPictureBufferDesc* recon_ptr = cand_bf->recon;
-    if (ctx->hbd_md) {
+    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         for (int j = 0; j < tx_height; ++j) {
             memcpy(((uint16_t*)recon_ptr->y_buffer) + txb_origin_index + j * recon_ptr->y_stride,
                    ((uint16_t*)ctx->recon_ptr[best_tx_type]->y_buffer) + txb_origin_index + j * recon_ptr->y_stride,
@@ -4516,12 +4528,14 @@ static INLINE double derive_ssim_threshold_factor_for_tx_type_search(SequenceCon
 static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidateBuffer* cand_bf,
                            uint32_t qindex, uint8_t tx_search_skip_flag, uint64_t* y_coeff_bits,
                            uint64_t y_full_distortion[DIST_TOTAL][DIST_CALC_TOTAL]) {
-    EbPictureBufferDesc* input_pic = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
+    EbPictureBufferDesc* input_pic = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
+                                                                       : pcs->ppcs->enhanced_pic;
     int32_t              seg_qp    = pcs->ppcs->frm_hdr.segmentation_params.segmentation_enabled
                         ? pcs->ppcs->frm_hdr.segmentation_params.feature_data[ctx->blk_ptr->segment_id][SEG_LVL_ALT_Q]
                         : 0;
 
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                             : ctx->full_lambda_md[EB_8_BIT_MD];
     // Store original tx size and height b/c those may be modified if using subsampled residual
     const TxSize   tx_size_original   = tx_depth_to_tx_size[ctx->tx_depth][ctx->blk_geom->bsize];
     const uint32_t txbheight_original = tx_size_high[tx_size_original];
@@ -4668,7 +4682,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                            NOT_USED_VALUE,
                                            tx_size,
                                            &ctx->three_quad_energy,
-                                           ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                           SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                            tx_type,
                                            PLANE_TYPE_Y,
                                            pf_shape);
@@ -4699,7 +4713,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                     tx_size,
                     &eob_txt[tx_type],
                     COMPONENT_LUMA,
-                    ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                    SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                     tx_type,
                     ctx->luma_txb_skip_context,
                     ctx->luma_dc_sign_context,
@@ -4727,7 +4741,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                                         cand_bf->recon->y_stride,
                                                         (int32_t*)recon_coeff_ptr->y_buffer,
                                                         ctx->txb_1d_offset,
-                                                        ctx->hbd_md,
+                                                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                         tx_size_original,
                                                         tx_type,
                                                         PLANE_TYPE_Y,
@@ -4739,11 +4753,12 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                            txb_origin_index,
                                            txbwidth,
                                            txbheight_original,
-                                           ctx->hbd_md);
+                                           SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
                 }
 
-                EbSpatialFullDistType spatial_full_dist_type_fun = ctx->hbd_md ? svt_full_distortion_kernel16_bits
-                                                                               : svt_spatial_full_distortion_kernel;
+                EbSpatialFullDistType spatial_full_dist_type_fun                 = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)
+                                    ? svt_full_distortion_kernel16_bits
+                                    : svt_spatial_full_distortion_kernel;
                 txb_full_distortion_txt[DIST_SSD][tx_type][DIST_CALC_PREDICTION] = spatial_full_dist_type_fun(
                     input_pic->y_buffer,
                     input_txb_origin_index,
@@ -4763,7 +4778,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                         cand_bf->pred->y_stride,
                         cropped_tx_width,
                         cropped_tx_height,
-                        ctx->hbd_md,
+                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                         effective_ac_bias);
                 }
                 txb_full_distortion_txt[DIST_SSD][tx_type][DIST_CALC_RESIDUAL] = spatial_full_dist_type_fun(
@@ -4785,7 +4800,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                         cand_bf->recon->y_stride,
                         cropped_tx_width,
                         cropped_tx_height,
-                        ctx->hbd_md,
+                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                         effective_ac_bias);
                 }
                 txb_full_distortion_txt[DIST_SSD][tx_type][DIST_CALC_PREDICTION] <<= 4;
@@ -4909,7 +4924,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                 cand_bf->recon->y_stride,
                 cropped_tx_width,
                 cropped_tx_height,
-                ctx->hbd_md,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                 effective_ac_bias);
 
             txb_full_distortion_txt[DIST_SSIM][tx_type][DIST_CALC_RESIDUAL] <<= 4;
@@ -4941,8 +4956,9 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
     // update with best_tx_type data
     (*y_coeff_bits) += y_txb_coeff_bits_txt[best_tx_type];
     if (ssim_level == SSIM_LVL_1) {
-        EbPictureBufferDesc* recon_ptr      = (best_tx_type == DCT_DCT) ? cand_bf->recon : ctx->recon_ptr[best_tx_type];
-        uint64_t             ssim_pred_dist = svt_spatial_full_distortion_ssim_kernel(input_pic->y_buffer,
+        EbPictureBufferDesc* recon_ptr = (best_tx_type == DCT_DCT) ? cand_bf->recon : ctx->recon_ptr[best_tx_type];
+
+        uint64_t ssim_pred_dist = svt_spatial_full_distortion_ssim_kernel(input_pic->y_buffer,
                                                                           input_txb_origin_index,
                                                                           input_pic->y_stride,
                                                                           cand_bf->pred->y_buffer,
@@ -4950,9 +4966,10 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                                                           cand_bf->pred->y_stride,
                                                                           cropped_tx_width,
                                                                           cropped_tx_height,
-                                                                          ctx->hbd_md,
+                                                                          SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                                           effective_ac_bias);
-        uint64_t             ssim_residual_dist = svt_spatial_full_distortion_ssim_kernel(input_pic->y_buffer,
+
+        uint64_t ssim_residual_dist = svt_spatial_full_distortion_ssim_kernel(input_pic->y_buffer,
                                                                               input_txb_origin_index,
                                                                               input_pic->y_stride,
                                                                               recon_ptr->y_buffer,
@@ -4960,7 +4977,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                                                               cand_bf->recon->y_stride,
                                                                               cropped_tx_width,
                                                                               cropped_tx_height,
-                                                                              ctx->hbd_md,
+                                                                              SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                                               effective_ac_bias);
         ssim_pred_dist <<= (4 + ctx->mds_subres_step);
         ssim_residual_dist <<= (4 + ctx->mds_subres_step);
@@ -4976,7 +4993,7 @@ static void tx_type_search(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                                                           cand_bf->pred->y_stride,
                                                                           cropped_tx_width,
                                                                           cropped_tx_height,
-                                                                          ctx->hbd_md,
+                                                                          SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                                           effective_ac_bias);
         ssim_pred_dist <<= (4 + ctx->mds_subres_step);
 
@@ -5020,7 +5037,7 @@ static void init_tx_cand_bf(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionCo
         svt_memcpy(ctx->cand_bf_tx_depth_1->cand, cand_bf->cand, sizeof(ModeDecisionCandidate));
         ctx->cand_bf_tx_depth_1->block_has_coeff = cand_bf->block_has_coeff;
         if (is_inter) {
-            if (ctx->hbd_md) {
+            if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 // Copy pred to tx_depth_1 cand_bf
                 {
                     uint16_t* src = &(((uint16_t*)cand_bf->pred->y_buffer)[block_index]);
@@ -5072,7 +5089,7 @@ static void init_tx_cand_bf(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionCo
 
         ctx->cand_bf_tx_depth_2->block_has_coeff = cand_bf->block_has_coeff;
         if (is_inter) {
-            if (ctx->hbd_md) {
+            if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 // Copy pred to tx_depth_1 cand_bf
                 {
                     uint16_t* src = &(((uint16_t*)cand_bf->pred->y_buffer)[block_index]);
@@ -5134,7 +5151,7 @@ void update_tx_cand_bf(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionContext
 
         cand_bf->y_has_coeff = ctx->cand_bf_tx_depth_1->y_has_coeff;
         // Copy depth 1 pred
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             uint16_t* src = &(((uint16_t*)ctx->cand_bf_tx_depth_1->pred->y_buffer)[block_index]);
             uint16_t* dst = &(((uint16_t*)cand_bf->pred->y_buffer)[block_index]);
             for (int i = 0; i < ctx->blk_geom->bheight; i++) {
@@ -5169,7 +5186,7 @@ void update_tx_cand_bf(ModeDecisionCandidateBuffer* cand_bf, ModeDecisionContext
 
         cand_bf->y_has_coeff = ctx->cand_bf_tx_depth_2->y_has_coeff;
         // Copy depth 2 pred
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             uint16_t* src = &(((uint16_t*)ctx->cand_bf_tx_depth_2->pred->y_buffer)[block_index]);
             uint16_t* dst = &(((uint16_t*)cand_bf->pred->y_buffer)[block_index]);
             for (int i = 0; i < ctx->blk_geom->bheight; i++) {
@@ -5200,8 +5217,10 @@ static void perform_tx_partitioning(ModeDecisionCandidateBuffer* cand_bf, ModeDe
                                     PictureControlSet* pcs, uint8_t start_tx_depth, uint8_t end_tx_depth,
                                     uint32_t qindex, uint64_t* y_coeff_bits,
                                     uint64_t y_full_distortion[DIST_TOTAL][DIST_CALC_TOTAL]) {
-    uint32_t full_lambda           = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
-    EbPictureBufferDesc* input_pic = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
+    uint32_t             full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                         : ctx->full_lambda_md[EB_8_BIT_MD];
+    EbPictureBufferDesc* input_pic   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
+                                                                         : pcs->ppcs->enhanced_pic;
     const bool is_inter = (is_inter_mode(cand_bf->cand->block_mi.mode) || cand_bf->cand->block_mi.use_intrabc) ? true
                                                                                                                : false;
     uint8_t    best_tx_depth    = 0;
@@ -5260,7 +5279,7 @@ static void perform_tx_partitioning(ModeDecisionCandidateBuffer* cand_bf, ModeDe
                                         (int16_t*)tx_cand_bf->residual->y_buffer,
                                         txb_origin_index,
                                         tx_cand_bf->residual->y_stride,
-                                        ctx->hbd_md,
+                                        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                         tx_width,
                                         tx_height >> ctx->mds_subres_step);
             }
@@ -5351,9 +5370,11 @@ static void perform_tx_partitioning(ModeDecisionCandidateBuffer* cand_bf, ModeDe
 static void perform_dct_dct_tx_light_pd1(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                          ModeDecisionCandidateBuffer* cand_bf, BlockLocation* loc,
                                          uint64_t* y_coeff_bits, uint64_t* y_full_distortion) {
-    uint32_t full_lambda           = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
-    EbPictureBufferDesc* input_pic = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
-    const bool           is_inter  = is_inter_mode(cand_bf->cand->block_mi.mode) ? true : false;
+    uint32_t             full_lambda       = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                               : ctx->full_lambda_md[EB_8_BIT_MD];
+    EbPictureBufferDesc* input_pic         = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
+                                                                               : pcs->ppcs->enhanced_pic;
+    const bool           is_inter          = is_inter_mode(cand_bf->cand->block_mi.mode) ? true : false;
     const double         effective_ac_bias = get_effective_ac_bias(
         pcs->scs->static_config.ac_bias, pcs->slice_type == I_SLICE, pcs->temporal_layer_index);
 
@@ -5367,7 +5388,7 @@ static void perform_dct_dct_tx_light_pd1(PictureControlSet* pcs, ModeDecisionCon
                             (int16_t*)cand_bf->residual->y_buffer,
                             0,
                             cand_bf->residual->y_stride,
-                            ctx->hbd_md,
+                            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                             ctx->blk_geom->bwidth,
                             ctx->blk_geom->bheight);
     const TxSize tx_size   = tx_depth_to_tx_size[0][ctx->blk_geom->bsize];
@@ -5388,27 +5409,28 @@ static void perform_dct_dct_tx_light_pd1(PictureControlSet* pcs, ModeDecisionCon
                                NOT_USED_VALUE,
                                tx_size,
                                &ctx->three_quad_energy,
-                               ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                               SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                DCT_DCT,
                                PLANE_TYPE_Y,
                                pf_shape);
-    cand_bf->quant_dc.y[0] = svt_aom_quantize_inv_quantize(pcs,
-                                                           ctx,
-                                                           (int32_t*)ctx->tx_coeffs->y_buffer,
-                                                           (int32_t*)quant_coeff_ptr->y_buffer,
-                                                           (int32_t*)recon_coeff_ptr->y_buffer,
-                                                           ctx->blk_ptr->qindex,
-                                                           0,
-                                                           tx_size,
-                                                           &(cand_bf->eob.y[0]),
-                                                           COMPONENT_LUMA,
-                                                           ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
-                                                           DCT_DCT,
-                                                           0,
-                                                           0,
-                                                           cand_bf->cand->block_mi.mode,
-                                                           full_lambda,
-                                                           false);
+    cand_bf->quant_dc.y[0] = svt_aom_quantize_inv_quantize(
+        pcs,
+        ctx,
+        (int32_t*)ctx->tx_coeffs->y_buffer,
+        (int32_t*)quant_coeff_ptr->y_buffer,
+        (int32_t*)recon_coeff_ptr->y_buffer,
+        ctx->blk_ptr->qindex,
+        0,
+        tx_size,
+        &(cand_bf->eob.y[0]),
+        COMPONENT_LUMA,
+        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
+        DCT_DCT,
+        0,
+        0,
+        cand_bf->cand->block_mi.mode,
+        full_lambda,
+        false);
     if (cand_bf->eob.y[0] == 0 &&
         (ctx->rate_est_ctrls.coeff_rate_est_lvl >= 2 || ctx->rate_est_ctrls.coeff_rate_est_lvl == 0)) {
         cand_bf->quant_dc.y[0]                  = 0;
@@ -5492,8 +5514,10 @@ static void perform_dct_dct_tx_light_pd1(PictureControlSet* pcs, ModeDecisionCon
 static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidateBuffer* cand_bf,
                                uint8_t tx_search_skip_flag, uint32_t qindex, uint64_t* y_coeff_bits,
                                uint64_t y_full_distortion[DIST_TOTAL][DIST_CALC_TOTAL]) {
-    const uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
-    EbPictureBufferDesc* const input_pic = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
+    const uint32_t             full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                               : ctx->full_lambda_md[EB_8_BIT_MD];
+    EbPictureBufferDesc* const input_pic   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
+                                                                               : pcs->ppcs->enhanced_pic;
     const bool is_inter    = (is_inter_mode(cand_bf->cand->block_mi.mode) || cand_bf->cand->block_mi.use_intrabc) ? true
                                                                                                                   : false;
     ctx->tx_depth          = 0;
@@ -5528,7 +5552,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                 (int16_t*)cand_bf->residual->y_buffer,
                                 txb_origin_index,
                                 cand_bf->residual->y_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 tx_width,
                                 tx_height >> ctx->mds_subres_step);
     }
@@ -5605,7 +5629,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                    NOT_USED_VALUE,
                                    tx_size,
                                    &ctx->three_quad_energy,
-                                   ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                   SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                    tx_type,
                                    PLANE_TYPE_Y,
                                    pf_shape);
@@ -5620,7 +5644,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
             tx_size,
             &(cand_bf->eob.y[txb_itr]),
             COMPONENT_LUMA,
-            ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
             tx_type,
             ctx->luma_txb_skip_context,
             ctx->luma_dc_sign_context,
@@ -5649,21 +5673,27 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                                 cand_bf->recon->y_stride,
                                                 (int32_t*)recon_coeff_ptr->y_buffer,
                                                 txb_1d_offset,
-                                                ctx->hbd_md,
+                                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                 tx_depth_to_tx_size[tx_depth][ctx->blk_geom->bsize],
                                                 tx_type,
                                                 PLANE_TYPE_Y,
                                                 (uint32_t)cand_bf->eob.y[txb_itr]);
         } else {
-            svt_av1_picture_copy_y(
-                cand_bf->pred, txb_origin_index, recon_ptr, txb_origin_index, tx_width, tx_height, ctx->hbd_md);
+            svt_av1_picture_copy_y(cand_bf->pred,
+                                   txb_origin_index,
+                                   recon_ptr,
+                                   txb_origin_index,
+                                   tx_width,
+                                   tx_height,
+                                   SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
         }
 
         const int32_t cropped_tx_width = MIN((uint8_t)tx_width, pcs->ppcs->aligned_width - (ctx->blk_org_x + tx_org_x));
         const int32_t cropped_tx_height                  = MIN((uint8_t)(tx_height >> ctx->mds_subres_step),
                                               pcs->ppcs->aligned_height - (ctx->blk_org_y + tx_org_y));
-        EbSpatialFullDistType spatial_full_dist_type_fun = ctx->hbd_md ? svt_full_distortion_kernel16_bits
-                                                                       : svt_spatial_full_distortion_kernel;
+        EbSpatialFullDistType spatial_full_dist_type_fun = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)
+            ? svt_full_distortion_kernel16_bits
+            : svt_spatial_full_distortion_kernel;
         if (ssim_level == SSIM_LVL_1 || ssim_level == SSIM_LVL_3) {
             y_full_distortion[DIST_SSIM][DIST_CALC_PREDICTION] = svt_spatial_full_distortion_ssim_kernel(
                 input_pic->y_buffer,
@@ -5674,7 +5704,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                 cand_bf->pred->y_stride,
                 cropped_tx_width,
                 cropped_tx_height,
-                ctx->hbd_md,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                 effective_ac_bias);
             y_full_distortion[DIST_SSIM][DIST_CALC_RESIDUAL] = svt_spatial_full_distortion_ssim_kernel(
                 input_pic->y_buffer,
@@ -5685,7 +5715,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                 cand_bf->recon->y_stride,
                 cropped_tx_width,
                 cropped_tx_height,
-                ctx->hbd_md,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                 effective_ac_bias);
             y_full_distortion[DIST_SSIM][DIST_CALC_PREDICTION] <<= 4;
             y_full_distortion[DIST_SSIM][DIST_CALC_RESIDUAL] <<= 4;
@@ -5699,16 +5729,17 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                                                                        cropped_tx_width,
                                                                                        cropped_tx_height);
         if (effective_ac_bias) {
-            y_full_distortion[DIST_SSD][DIST_CALC_PREDICTION] += get_svt_psy_full_dist(input_pic->y_buffer,
-                                                                                       input_txb_origin_index,
-                                                                                       input_pic->y_stride,
-                                                                                       cand_bf->pred->y_buffer,
-                                                                                       (int32_t)txb_origin_index,
-                                                                                       cand_bf->pred->y_stride,
-                                                                                       cropped_tx_width,
-                                                                                       cropped_tx_height,
-                                                                                       ctx->hbd_md,
-                                                                                       effective_ac_bias);
+            y_full_distortion[DIST_SSD][DIST_CALC_PREDICTION] += get_svt_psy_full_dist(
+                input_pic->y_buffer,
+                input_txb_origin_index,
+                input_pic->y_stride,
+                cand_bf->pred->y_buffer,
+                (int32_t)txb_origin_index,
+                cand_bf->pred->y_stride,
+                cropped_tx_width,
+                cropped_tx_height,
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
+                effective_ac_bias);
         }
 
         y_full_distortion[DIST_SSD][DIST_CALC_RESIDUAL] = spatial_full_dist_type_fun(input_pic->y_buffer,
@@ -5728,7 +5759,7 @@ static void perform_dct_dct_tx(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                                                                      cand_bf->recon->y_stride,
                                                                                      cropped_tx_width,
                                                                                      cropped_tx_height,
-                                                                                     ctx->hbd_md,
+                                                                                     SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                                                                      effective_ac_bias);
         }
         y_full_distortion[DIST_SSD][DIST_CALC_PREDICTION] <<= 4;
@@ -5812,7 +5843,7 @@ static void check_is_subres_safe(ModeDecisionContext* ctx, ModeDecisionCandidate
                                  EbPictureBufferDesc* input_pic, uint32_t input_origin_index,
                                  uint32_t blk_origin_index) {
     uint32_t sad_even, sad_odd;
-    if (!ctx->hbd_md) {
+    if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         sad_even = svt_nxm_sad_kernel(input_pic->y_buffer + input_origin_index,
                                       input_pic->y_stride << 1,
                                       cand_bf->pred->y_buffer + blk_origin_index,
@@ -5911,7 +5942,7 @@ void chroma_complexity_check_pred(ModeDecisionContext* ctx, ModeDecisionCandidat
     uint8_t  shift = 0;
     shift          = ctx->blk_geom->bheight_uv > 8 ? 2 : ctx->blk_geom->bheight_uv > 4 ? 1 : 0; // no shift for 4x4
 
-    if (!ctx->hbd_md) {
+    if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         y_dist = svt_nxm_sad_kernel(input_pic->y_buffer + loc->input_origin_index,
                                     input_pic->y_stride << shift,
                                     cand_buffer->pred->y_buffer,
@@ -5984,7 +6015,7 @@ void chroma_complexity_check_pred(ModeDecisionContext* ctx, ModeDecisionCandidat
         unsigned int            sse;
         unsigned int            var_cb;
         unsigned int            var_cr;
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             var_cb = fn_ptr->vf_hbd_10(
                 CONVERT_TO_BYTEPTR(((uint16_t*)input_pic->u_buffer) + loc->input_cb_origin_in_index),
                 input_pic->u_stride,
@@ -6048,7 +6079,7 @@ static COMPONENT_TYPE chroma_complexity_check(PictureControlSet* pcs, ModeDecisi
         // -------
         // Use scaled references if resolution of the reference is different from that of the input
         // -------
-        svt_aom_use_scaled_rec_refs_if_needed(pcs, input_pic, ref_obj, &ref_pic, ctx->hbd_md);
+        svt_aom_use_scaled_rec_refs_if_needed(pcs, input_pic, ref_obj, &ref_pic, SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
 
         int32_t src_y_offset  = ctx->blk_org_x + mv_x + (ctx->blk_org_y + mv_y) * ref_pic->y_stride;
         int32_t src_cb_offset = ((ctx->blk_org_x + mv_x) >> 1) + (((ctx->blk_org_y + mv_y) >> 1)) * ref_pic->u_stride;
@@ -6063,7 +6094,7 @@ static COMPONENT_TYPE chroma_complexity_check(PictureControlSet* pcs, ModeDecisi
         uint32_t y_dist, cb_dist, cr_dist;
 
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             uint16_t* src_10b;
             DECLARE_ALIGNED(16, uint16_t, packed_buf[PACKED_BUFFER_SIZE]);
             // pack the reference into temp 16bit buffer
@@ -6177,7 +6208,7 @@ static COMPONENT_TYPE chroma_complexity_check(PictureControlSet* pcs, ModeDecisi
         unsigned int            sse;
         unsigned int            var_cb;
         unsigned int            var_cr;
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             var_cb = fn_ptr->vf_hbd_10(
                 CONVERT_TO_BYTEPTR(((uint16_t*)input_pic->u_buffer) + loc->input_cb_origin_in_index),
                 input_pic->u_stride,
@@ -6310,7 +6341,8 @@ static bool lpd1_should_perform_tx(PictureControlSet* pcs, ModeDecisionContext* 
 // Returns true when SKIP was committed (caller should set perform_chroma = false).
 static bool lpd1_blk_skip_luma_rd(ModeDecisionContext* ctx, ModeDecisionCandidateBuffer* cand_bf, uint64_t y_coeff_bits,
                                   uint64_t* y_dist) {
-    const uint64_t lambda        = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    const uint64_t lambda        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                     : ctx->full_lambda_md[EB_8_BIT_MD];
     const uint8_t  skip_ctx      = ctx->skip_coeff_ctx;
     const uint64_t non_skip_cost = RDCOST(
         lambda, y_coeff_bits + (uint64_t)ctx->md_rate_est_ctx->skip_fac_bits[skip_ctx][0], y_dist[DIST_CALC_RESIDUAL]);
@@ -6447,11 +6479,12 @@ static void full_loop_core_light_pd1(PictureControlSet* pcs, ModeDecisionContext
     const uint8_t recon_needed = svt_aom_do_md_recon(pcs->ppcs, ctx);
 
     // If need 10bit prediction, perform luma compensation before TX
-    if ((perform_tx || recon_needed) && ctx->hbd_md) {
+    if ((perform_tx || recon_needed) && SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         ctx->md_stage           = MD_STAGE_0;
         ctx->mds_do_chroma      = false;
         ctx->uv_intra_comp_only = false;
-        product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         ctx->md_stage           = MD_STAGE_3;
         ctx->uv_intra_comp_only = true;
         ctx->mds_do_chroma      = true;
@@ -6525,9 +6558,11 @@ static void full_loop_core_light_pd1(PictureControlSet* pcs, ModeDecisionContext
             ctx->lpd1_chroma_comp = ctx->lpd1_tx_ctrls.chroma_detector_level <= 3 ? COMPONENT_CHROMA : chroma_component;
         }
         //Chroma Prediction
-        product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         // Per-plane absolute chroma-residual SAD gate (decision encoded in chroma_component; strictly additive towards skip)
-        if (ctx->lpd1_chroma_skip_energy_th && !ctx->hbd_md && is_inter_mode(cand->block_mi.mode)) {
+        if (ctx->lpd1_chroma_skip_energy_th && !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) &&
+            is_inter_mode(cand->block_mi.mode)) {
             if (lpd1_chroma_energy_skip(ctx,
                                         cand_bf,
                                         input_pic,
@@ -6565,21 +6600,23 @@ static void full_loop_core_light_pd1(PictureControlSet* pcs, ModeDecisionContext
         } // chroma_component > COMPONENT_LUMA
         cand_bf->block_has_coeff = (cand_bf->y_has_coeff || cand_bf->u_has_coeff || cand_bf->v_has_coeff) ? true
                                                                                                           : false;
-        svt_aom_full_cost(pcs,
-                          ctx,
-                          cand_bf,
-                          ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD],
-                          y_full_distortion,
-                          cb_full_distortion,
-                          cr_full_distortion,
-                          &y_coeff_bits,
-                          &cb_coeff_bits,
-                          &cr_coeff_bits);
+        svt_aom_full_cost(
+            pcs,
+            ctx,
+            cand_bf,
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD],
+            y_full_distortion,
+            cb_full_distortion,
+            cr_full_distortion,
+            &y_coeff_bits,
+            &cb_coeff_bits,
+            &cr_coeff_bits);
     } else {
         // Only need chroma pred if generating recon
         if (ctx->lpd1_chroma_comp > COMPONENT_LUMA) {
             //Chroma Prediction
-            product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+            product_prediction_fun_table_light_pd1[is_inter_mode(cand->block_mi.mode)](
+                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         }
         cand_bf->u_has_coeff = cand_bf->v_has_coeff = 0;
         if (cand->skip_mode_allowed) {
@@ -6742,7 +6779,8 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
     uint64_t      y_coeff_bits  = 0;
     uint64_t      cb_coeff_bits = 0;
     uint64_t      cr_coeff_bits = 0;
-    uint32_t      full_lambda   = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t      full_lambda   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                    : ctx->full_lambda_md[EB_8_BIT_MD];
     const int32_t is_inter      = (is_inter_mode(cand->block_mi.mode) || cand->block_mi.use_intrabc) ? true : false;
     cand_bf->full_dist          = 0;
     // Set Skip Flag
@@ -6751,7 +6789,7 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
         opt_non_translation_motion_mode(pcs, ctx, cand_bf, cand);
         if (ctx->mds_do_chroma || ctx->mds_do_ifs || cand_bf->valid_luma_pred == 0 || ctx->need_hbd_comp_mds3) {
             // Perform INTER prediction
-            product_prediction_fun_table[1](ctx->hbd_md, ctx, pcs, cand_bf);
+            product_prediction_fun_table[1](SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
             cand_bf->valid_luma_pred = 1;
         }
     } else if (ctx->mds_do_chroma || ctx->need_hbd_comp_mds3) {
@@ -6761,7 +6799,8 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
         assert(cand_bf->valid_luma_pred);
         ctx->uv_intra_comp_only = ctx->need_hbd_comp_mds3 ? false : true;
         // Here, the mode is INTRA, but if intra_bc is used, must use inter prediction function
-        product_prediction_fun_table[cand_bf->cand->block_mi.use_intrabc](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table[cand_bf->cand->block_mi.use_intrabc](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
     }
     // Initialize luma CBF
     cand_bf->y_has_coeff   = 0;
@@ -6784,7 +6823,7 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                 (int16_t*)cand_bf->residual->y_buffer,
                                 0,
                                 cand_bf->residual->y_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth,
                                 ctx->blk_geom->bheight >> ctx->mds_subres_step);
     }
@@ -6852,7 +6891,7 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 0,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -6866,7 +6905,7 @@ static void full_loop_core(PictureControlSet* pcs, ModeDecisionContext* ctx, Mod
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 0,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
         svt_aom_full_loop_uv(pcs,
@@ -7165,9 +7204,9 @@ static void move_blk_data_redund(PictureControlSet* pcs, ModeDecisionContext* ct
     uint16_t bwidth_uv  = ctx->blk_geom->bwidth_uv;
     uint16_t bheight_uv = ctx->blk_geom->bheight_uv;
     // if using 8bit MD and bypassing encdec, need to save 8bit and 10bit recon
-    const bool save_both_recon = ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md &&
-        ctx->pd_pass == PD_PASS_1;
-    if (save_both_recon || !ctx->hbd_md) {
+    const bool save_both_recon = SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1;
+    if (save_both_recon || !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         svt_memcpy(dst->neigh_left_recon[0], src->neigh_left_recon[0], bheight);
         svt_memcpy(dst->neigh_left_recon[1], src->neigh_left_recon[1], bheight_uv);
         svt_memcpy(dst->neigh_left_recon[2], src->neigh_left_recon[2], bheight_uv);
@@ -7175,7 +7214,7 @@ static void move_blk_data_redund(PictureControlSet* pcs, ModeDecisionContext* ct
         svt_memcpy(dst->neigh_top_recon[1], src->neigh_top_recon[1], bwidth_uv);
         svt_memcpy(dst->neigh_top_recon[2], src->neigh_top_recon[2], bwidth_uv);
     }
-    if (save_both_recon || ctx->hbd_md) {
+    if (save_both_recon || SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         uint16_t sz = sizeof(uint16_t);
         svt_memcpy(dst->neigh_left_recon_16bit[0], src->neigh_left_recon_16bit[0], bheight * sz);
         svt_memcpy(dst->neigh_left_recon_16bit[1], src->neigh_left_recon_16bit[1], bheight_uv * sz);
@@ -7204,9 +7243,9 @@ static void search_best_mds3_uv_mode(PictureControlSet* pcs, EbPictureBufferDesc
                                      uint32_t input_cb_origin_in_index, uint32_t input_cr_origin_in_index,
                                      uint32_t cu_chroma_origin_index, ModeDecisionContext* ctx,
                                      uint32_t full_cand_count) {
-    PictureParentControlSet* ppcs        = pcs->ppcs;
-    FrameHeader*             frm_hdr     = &ppcs->frm_hdr;
-    uint32_t                 full_lambda = ctx->full_lambda_md[ctx->hbd_md ? EB_10_BIT_MD : EB_8_BIT_MD];
+    PictureParentControlSet* ppcs    = pcs->ppcs;
+    FrameHeader*             frm_hdr = &ppcs->frm_hdr;
+    uint32_t full_lambda = ctx->full_lambda_md[SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_10_BIT_MD : EB_8_BIT_MD];
 
     uint64_t coeff_rate[UV_PAETH_PRED + 1][(MAX_ANGLE_DELTA << 1) + 1];
     uint64_t distortion[UV_PAETH_PRED + 1][(MAX_ANGLE_DELTA << 1) + 1];
@@ -7296,7 +7335,8 @@ static void search_best_mds3_uv_mode(PictureControlSet* pcs, EbPictureBufferDesc
         ModeDecisionCandidateBuffer* cand_bf = ctx->cand_bf_ptr_array[uv_mode_count + start_full_buffer_index];
         ModeDecisionCandidate* cand = cand_bf->cand = &ctx->fast_cand_array[uv_mode_count + start_fast_buffer_index];
 
-        product_prediction_fun_table[is_inter_mode(cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table[is_inter_mode(cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
 
         uint16_t cb_qindex                                       = ctx->qp_index;
         uint64_t cb_coeff_bits                                   = 0;
@@ -7314,7 +7354,7 @@ static void search_best_mds3_uv_mode(PictureControlSet* pcs, EbPictureBufferDesc
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 cu_chroma_origin_index,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -7328,7 +7368,7 @@ static void search_best_mds3_uv_mode(PictureControlSet* pcs, EbPictureBufferDesc
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 cu_chroma_origin_index,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -7420,10 +7460,10 @@ the following main parts:
 static void search_best_independent_uv_mode(PictureControlSet* pcs, EbPictureBufferDesc* input_pic,
                                             uint32_t input_cb_origin_in_index, uint32_t input_cr_origin_in_index,
                                             uint32_t cu_chroma_origin_index, ModeDecisionContext* ctx) {
-    PictureParentControlSet* ppcs        = pcs->ppcs;
-    FrameHeader*             frm_hdr     = &ppcs->frm_hdr;
-    uint32_t                 full_lambda = ctx->full_lambda_md[ctx->hbd_md ? EB_10_BIT_MD : EB_8_BIT_MD];
-    const TxSize             tx_size_uv  = av1_get_max_uv_txsize(ctx->blk_geom->bsize, 1, 1);
+    PictureParentControlSet* ppcs    = pcs->ppcs;
+    FrameHeader*             frm_hdr = &ppcs->frm_hdr;
+    uint32_t     full_lambda = ctx->full_lambda_md[SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_10_BIT_MD : EB_8_BIT_MD];
+    const TxSize tx_size_uv  = av1_get_max_uv_txsize(ctx->blk_geom->bsize, 1, 1);
 
     uint64_t coeff_rate[UV_PAETH_PRED + 1][(MAX_ANGLE_DELTA << 1) + 1];
     uint64_t distortion[UV_PAETH_PRED + 1][(MAX_ANGLE_DELTA << 1) + 1];
@@ -7506,9 +7546,10 @@ static void search_best_independent_uv_mode(PictureControlSet* pcs, EbPictureBuf
     for (unsigned int uv_mode_count = 0; uv_mode_count < uv_mode_total_count; uv_mode_count++) {
         ModeDecisionCandidateBuffer* cand_bf = ctx->cand_bf_ptr_array[uv_mode_count + start_full_buffer_index];
         cand_bf->cand                        = &ctx->fast_cand_array[uv_mode_count + start_fast_buffer_index];
-        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](ctx->hbd_md, ctx, pcs, cand_bf);
+        product_prediction_fun_table[is_inter_mode(cand_bf->cand->block_mi.mode)](
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md), ctx, pcs, cand_bf);
         uint32_t chroma_fast_distortion;
-        if (!ctx->hbd_md) {
+        if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             const AomVarianceFnPtr* fn_ptr = &svt_aom_mefn_ptr[ctx->blk_geom->bsize_uv];
             unsigned int            sse;
             uint8_t*                pred_cb = cand_bf->pred->u_buffer + cu_chroma_origin_index;
@@ -7609,7 +7650,7 @@ static void search_best_independent_uv_mode(PictureControlSet* pcs, EbPictureBuf
                                 (int16_t*)cand_bf->residual->u_buffer,
                                 cu_chroma_origin_index,
                                 cand_bf->residual->u_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
 
@@ -7623,7 +7664,7 @@ static void search_best_independent_uv_mode(PictureControlSet* pcs, EbPictureBuf
                                 (int16_t*)cand_bf->residual->v_buffer,
                                 cu_chroma_origin_index,
                                 cand_bf->residual->v_stride,
-                                ctx->hbd_md,
+                                SVT_EFFECTIVE_HBD_MD(ctx->hbd_md),
                                 ctx->blk_geom->bwidth_uv,
                                 ctx->blk_geom->bheight_uv);
         svt_aom_full_loop_uv(pcs,
@@ -7937,8 +7978,9 @@ static void calc_scr_to_recon_dist_per_quadrant(ModeDecisionContext* ctx, EbPict
                                                 const uint32_t blk_chroma_origin_index) {
     EbPictureBufferDesc* recon_ptr = cand_bf->recon;
 
-    EbSpatialFullDistType spatial_full_dist_type_fun = ctx->hbd_md ? svt_full_distortion_kernel16_bits
-                                                                   : svt_spatial_full_distortion_kernel;
+    EbSpatialFullDistType spatial_full_dist_type_fun = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)
+        ? svt_full_distortion_kernel16_bits
+        : svt_spatial_full_distortion_kernel;
 
     uint8_t r, c;
     int32_t quadrant_size = ctx->blk_geom->sq_size >> 1;
@@ -8339,7 +8381,7 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
             // If using a fixed partition structure (only pred depth and no NSQ, can copy directly to final buffer
             // b/c no d1 or d2 decision
             if (ctx->fixed_partition) {
-                svt_aom_get_recon_pic(pcs, &recon_ptr, ctx->hbd_md);
+                svt_aom_get_recon_pic(pcs, &recon_ptr, SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
                 rec_luma_offset = (ctx->blk_org_y) * recon_ptr->y_stride + (ctx->blk_org_x);
             } else {
                 recon_ptr       = ctx->blk_ptr->recon_tmp;
@@ -8347,7 +8389,8 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
             }
         }
         // if using 8bit MD and bypassing encdec, need to save 8bit and 10bit recon
-        if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1) {
+        if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+            !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1) {
             // copy 10bit
             if (ctx->fixed_partition) {
                 svt_aom_get_recon_pic(pcs, &recon_ptr, 1);
@@ -8371,7 +8414,7 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
                            recon_ptr->y_buffer + rec_luma_offset + j * recon_ptr->y_stride,
                            blk_geom->bwidth);
             }
-        } else if (ctx->hbd_md) {
+        } else if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             for (uint32_t j = 0; j < blk_geom->bheight; ++j) {
                 svt_memcpy(ctx->cfl_temp_luma_recon16bit + dst_offset + j * dst_stride,
                            ((uint16_t*)recon_ptr->y_buffer) + (rec_luma_offset + j * recon_ptr->y_stride),
@@ -8396,7 +8439,7 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
         // If using a fixed partition structure (only pred depth and no NSQ, can copy directly to final buffer
         // b/c no d1 or d2 decision
         if (ctx->fixed_partition) {
-            svt_aom_get_recon_pic(pcs, &recon_ptr, ctx->hbd_md);
+            svt_aom_get_recon_pic(pcs, &recon_ptr, SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
             rec_luma_offset = (ctx->blk_org_y) * recon_ptr->y_stride + (ctx->blk_org_x);
 
             uint32_t round_origin_x = ROUND_UV(ctx->blk_org_x); // for Chroma blocks with size of 4
@@ -8408,7 +8451,8 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
         }
     }
     // if using 8bit MD and bypassing encdec, need to save 8bit and 10bit recon
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1) {
         // copy 16bit recon
         if (ctx->fixed_partition) {
             svt_aom_get_recon_pic(pcs, &recon_ptr, 1);
@@ -8482,7 +8526,7 @@ static void copy_recon_md(PictureControlSet* pcs, ModeDecisionContext* ctx, Mode
                     recon_ptr->v_buffer[rec_cr_offset + blk_geom->bwidth_uv - 1 + j * recon_ptr->v_stride];
             }
         }
-    } else if (!ctx->hbd_md) {
+    } else if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         // Copy 8bit recon
         // Copy bottom row (used for intra pred of the below block)
         svt_memcpy(ctx->blk_ptr->neigh_top_recon[0],
@@ -8635,7 +8679,7 @@ static void copy_recon_light_pd1(PictureControlSet* pcs, ModeDecisionContext* ct
     }
 
     // If bypassing EncDec for 10bit, need to save 8bit and 10bit recon
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec) {
         svt_aom_get_recon_pic(pcs, &recon_ptr, 1);
         // Y
         // Copy top and bottom rows
@@ -8700,7 +8744,6 @@ static void copy_recon_light_pd1(PictureControlSet* pcs, ModeDecisionContext* ct
 /*
  * Convert the recon picture from 16bit to 8bit when bypassing EncDec.
  */
-#if CONFIG_ENABLE_HIGH_BIT_DEPTH
 static void convert_md_recon_16bit_to_8bit(PictureControlSet* pcs, ModeDecisionContext* ctx) {
     EbPictureBufferDesc* recon_buffer_16bit;
     EbPictureBufferDesc* recon_buffer_8bit;
@@ -8802,7 +8845,6 @@ static void convert_md_recon_16bit_to_8bit(PictureControlSet* pcs, ModeDecisionC
                       ctx->blk_geom->bwidth_uv,
                       ctx->blk_geom->bheight_uv);
 }
-#endif // CONFIG_ENABLE_HIGH_BIT_DEPTH
 
 // Check if reference frame pair of the current block matches with the given
 // block.
@@ -9016,7 +9058,7 @@ static void md_encode_block_light_pd1(PictureControlSet* pcs, ModeDecisionContex
     // Using the 8bit residual for the TX will cause different streams compared to using the 10bit residual.
     // To generate the same streams, compute the 10bit prediction before computing the recon
 
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && perform_md_recon) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec && perform_md_recon) {
         ctx->hbd_md = 2;
 
         // Update input pic and offsets
@@ -9036,11 +9078,10 @@ static void md_encode_block_light_pd1(PictureControlSet* pcs, ModeDecisionContex
     }
 
     // Convert 10bit recon (used as final EncDec recon) to 8bit recon (used for MD intra pred)
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && ctx->hbd_md) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         if (!ctx->skip_intra) {
-#if CONFIG_ENABLE_HIGH_BIT_DEPTH
             convert_md_recon_16bit_to_8bit(pcs, ctx);
-#endif
         }
         ctx->hbd_md = 0;
     }
@@ -9097,7 +9138,7 @@ static void non_normative_txs(PictureControlSet* pcs, ModeDecisionContext* ctx, 
                                            NOT_USED_VALUE,
                                            tx_size,
                                            &ctx->three_quad_energy,
-                                           ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                           SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                            DCT_DCT,
                                            PLANE_TYPE_Y,
                                            DEFAULT_SHAPE);
@@ -9110,7 +9151,7 @@ static void non_normative_txs(PictureControlSet* pcs, ModeDecisionContext* ctx, 
                                                     blk_ptr->qindex,
                                                     tx_size,
                                                     &eob_txt,
-                                                    ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                                    SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                                     DCT_DCT);
 
                 ctx->txb_1d_offset += txbwidth * txbheight;
@@ -9155,7 +9196,7 @@ static void non_normative_txs(PictureControlSet* pcs, ModeDecisionContext* ctx, 
                                            NOT_USED_VALUE,
                                            tx_size,
                                            &ctx->three_quad_energy,
-                                           ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                           SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                            DCT_DCT,
                                            PLANE_TYPE_Y,
                                            DEFAULT_SHAPE);
@@ -9168,7 +9209,7 @@ static void non_normative_txs(PictureControlSet* pcs, ModeDecisionContext* ctx, 
                                                     blk_ptr->qindex,
                                                     tx_size,
                                                     &eob_txt,
-                                                    ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                                                    SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                                                     DCT_DCT);
 
                 ctx->txb_1d_offset += txbwidth * txbheight;
@@ -9509,7 +9550,7 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
         }
     }
 
-    const uint8_t org_hbd          = ctx->hbd_md;
+    const uint8_t org_hbd          = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md);
     const uint8_t perform_md_recon = svt_aom_do_md_recon(pcs->ppcs, ctx);
 
     // For 10bit content, when recon is not needed, hbd_md can stay =0,
@@ -9520,8 +9561,8 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
     // Using the 8bit residual for the TX will cause different streams compared to using the 10bit residual.
     // To generate the same streams, compute the 10bit prediction before computing the recon
 
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1 &&
-        perform_md_recon) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1 && perform_md_recon) {
         ctx->hbd_md             = 2;
         ctx->need_hbd_comp_mds3 = 1;
         ctx->scale_palette      = 1;
@@ -9556,12 +9597,10 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
         calc_scr_to_recon_dist_per_quadrant(
             ctx, input_pic, loc.input_origin_index, loc.input_cb_origin_in_index, cand_bf, 0, 0);
     }
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !org_hbd && ctx->pd_pass == PD_PASS_1 &&
-        ctx->hbd_md) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec && !org_hbd &&
+        ctx->pd_pass == PD_PASS_1 && SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         if (!ctx->skip_intra || ctx->inter_intra_comp_ctrls.enabled) {
-#if CONFIG_ENABLE_HIGH_BIT_DEPTH
             convert_md_recon_16bit_to_8bit(pcs, ctx);
-#endif
         }
         ctx->hbd_md             = 0;
         ctx->need_hbd_comp_mds3 = 0;
@@ -9589,10 +9628,12 @@ static bool update_skip_nsq_based_on_split_rate(PictureControlSet* pcs, ModeDeci
 
     const BlkStruct* sq_blk_ptr = pc_tree->block_data[PART_N][0];
     // if hbd_md is 0, we may still use 10bit lambda to generate final costs if we are bypassing encdec for 10bit content.
-    const bool     used_10bit_at_mds3 = (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec &&
-                                     ctx->pd_pass == PD_PASS_1 && svt_aom_do_md_recon(pcs->ppcs, ctx));
-    const uint32_t full_lambda        = ctx->hbd_md || used_10bit_at_mds3 ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
-                                                                          : ctx->full_sb_lambda_md[EB_8_BIT_MD];
+    const bool     used_10bit_at_mds3 = (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT &&
+                                     ctx->bypass_encdec && ctx->pd_pass == PD_PASS_1 &&
+                                     svt_aom_do_md_recon(pcs->ppcs, ctx));
+    const uint32_t full_lambda        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) || used_10bit_at_mds3
+               ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
+               : ctx->full_sb_lambda_md[EB_8_BIT_MD];
     uint32_t       nsq_split_cost_th  = ctx->nsq_search_ctrls.nsq_split_cost_th;
     // Get the rate cost of splitting into the current NSQ shape.
     // If the cost of the split rate is significant, then the shape is unlikely to be selected.
@@ -9725,7 +9766,8 @@ static bool update_skip_nsq_based_on_sq_recon_dist(ModeDecisionContext* ctx, con
     BlkStruct* sq_blk_ptr = pc_tree->block_data[PART_N][0];
 
     // Derive the distortion/cost ratio
-    const uint32_t full_lambda     = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    const uint32_t full_lambda     = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                       : ctx->full_lambda_md[EB_8_BIT_MD];
     const uint64_t dist            = RDCOST(full_lambda, 0, sq_blk_ptr->full_dist);
     const uint64_t dist_cost_ratio = (dist * 100) / sq_blk_ptr->cost;
     const uint64_t min_ratio       = 50;
@@ -10064,7 +10106,8 @@ static INLINE void update_neighbour_arrays_pd0(PictureControlSet* pcs, ModeDecis
 static void update_neighbour_arrays(PictureControlSet* pcs, ModeDecisionContext* ctx) {
     const uint16_t tile_idx = ctx->tile_index;
     ctx->leaf_partition_na  = pcs->mdleaf_partition_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && !ctx->hbd_md && ctx->pd_pass == PD_PASS_1) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+        !SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) && ctx->pd_pass == PD_PASS_1) {
         ctx->recon_neigh_y  = pcs->md_luma_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->recon_neigh_cb = pcs->md_cb_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->recon_neigh_cr = pcs->md_cr_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
@@ -10072,7 +10115,7 @@ static void update_neighbour_arrays(PictureControlSet* pcs, ModeDecisionContext*
         ctx->luma_recon_na_16bit = pcs->md_luma_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->cb_recon_na_16bit   = pcs->md_cb_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->cr_recon_na_16bit   = pcs->md_cr_recon_na_16bit[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
-    } else if (!ctx->hbd_md) {
+    } else if (!SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         ctx->recon_neigh_y  = pcs->md_luma_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->recon_neigh_cb = pcs->md_cb_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
         ctx->recon_neigh_cr = pcs->md_cr_recon_na[MD_NEIGHBOR_ARRAY_INDEX][tile_idx];
@@ -10176,7 +10219,8 @@ static bool update_redundant(PictureControlSet* pcs, ModeDecisionContext* ctx, P
         const uint8_t bheight    = blk_geom->bheight;
         const uint8_t bwidth_uv  = blk_geom->bwidth_uv;
         const uint8_t bheight_uv = blk_geom->bheight_uv;
-        uint16_t      sz         = ctx->encoder_bit_depth > EB_EIGHT_BIT ? sizeof(uint16_t) : sizeof(uint8_t);
+        uint16_t      sz         = SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT ? sizeof(uint16_t)
+                                                                                                  : sizeof(uint8_t);
 
         uint32_t dst_stride = blk_ptr->recon_tmp->y_stride;
         uint32_t src_stride = redund_blk_ptr->recon_tmp->y_stride;
@@ -10603,7 +10647,9 @@ void svt_aom_init_sb_data(SequenceControlSet* scs, PictureControlSet* pcs, ModeD
 
     // If high bit-depth, pad the input pic. Done once for SB.
     // If using 8bit MD but bypassing EncDec, will need the 16bit pic for MDS3.
-    if (ctx->hbd_md || (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec && ctx->pd_pass == PD_PASS_1)) {
+    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ||
+        (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && ctx->bypass_encdec &&
+         ctx->pd_pass == PD_PASS_1)) {
         pad_hbd_pictures(scs, pcs, ctx, pcs->ppcs->enhanced_pic);
     }
 
@@ -10646,10 +10692,12 @@ static bool test_split_partition(SequenceControlSet* scs, PictureControlSet* pcs
         return false;
     }
     // if hbd_md is 0, we may still use 10bit lambda to generate final costs if we are bypassing encdec for 10bit content.
-    const bool     used_10bit_at_mds3 = (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec &&
-                                     ctx->pd_pass == PD_PASS_1 && svt_aom_do_md_recon(pcs->ppcs, ctx));
-    const uint32_t full_lambda        = ctx->hbd_md || used_10bit_at_mds3 ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
-                                                                          : ctx->full_sb_lambda_md[EB_8_BIT_MD];
+    const bool     used_10bit_at_mds3 = (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT &&
+                                     ctx->bypass_encdec && ctx->pd_pass == PD_PASS_1 &&
+                                     svt_aom_do_md_recon(pcs->ppcs, ctx));
+    const uint32_t full_lambda        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) || used_10bit_at_mds3
+               ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
+               : ctx->full_sb_lambda_md[EB_8_BIT_MD];
     int64_t        above_split_rate   = svt_aom_partition_rate_cost(pcs->ppcs,
                                                            pc_tree->bsize,
                                                            mi_row,
@@ -10727,7 +10775,8 @@ static bool test_depth(SequenceControlSet* scs, PictureControlSet* pcs, ModeDeci
                        PC_TREE* pc_tree, const int mi_row, const int mi_col) {
     const bool           allintra         = scs->allintra;
     const bool           rtc_tune         = scs->static_config.rtc;
-    EbPictureBufferDesc* input_pic        = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
+    EbPictureBufferDesc* input_pic        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
+                                                                              : pcs->ppcs->enhanced_pic;
     const uint32_t       base_blk_idx_mds = mds->mds_idx;
 
     // Reset settings, in case they were over-written by previous block
@@ -10751,10 +10800,12 @@ static bool test_depth(SequenceControlSet* scs, PictureControlSet* pcs, ModeDeci
     const int quarter_step = mi_size_wide[mds->bsize] >> 2;
 
     // if hbd_md is 0, we may still use 10bit lambda to generate final costs if we are bypassing encdec for 10bit content.
-    const bool     used_10bit_at_mds3 = (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->bypass_encdec &&
-                                     ctx->pd_pass == PD_PASS_1 && svt_aom_do_md_recon(pcs->ppcs, ctx));
-    const uint32_t full_lambda        = ctx->hbd_md || used_10bit_at_mds3 ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
-                                                                          : ctx->full_sb_lambda_md[EB_8_BIT_MD];
+    const bool     used_10bit_at_mds3 = (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT &&
+                                     ctx->bypass_encdec && ctx->pd_pass == PD_PASS_1 &&
+                                     svt_aom_do_md_recon(pcs->ppcs, ctx));
+    const uint32_t full_lambda        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) || used_10bit_at_mds3
+               ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
+               : ctx->full_sb_lambda_md[EB_8_BIT_MD];
     // Loop over all shapes set to be tested at the current depth
     for (uint32_t shape_idx = 0; shape_idx < mds->tot_shapes; shape_idx++) {
         const Part shape           = mds->shapes[shape_idx];

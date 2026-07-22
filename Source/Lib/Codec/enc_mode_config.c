@@ -2156,7 +2156,7 @@ void svt_aom_sig_deriv_multi_processes_default(SequenceControlSet* scs, PictureP
     //User accessible setting for forcing different levels of
     //high bit depth mode decision; also has a check to make sure
     //encoder bith depth>8 to work in full hbd-md
-    if (scs->encoder_bit_depth == EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(scs->encoder_bit_depth) == EB_EIGHT_BIT) {
         pcs->hbd_md = 0;
     } else if (pcs->scs->static_config.hbd_mds != DEFAULT) {
         pcs->hbd_md = pcs->scs->static_config.hbd_mds;
@@ -5452,7 +5452,7 @@ static void set_inter_intra_ctrls(ModeDecisionContext* ctx, uint8_t inter_intra_
 
 static void set_pd0_ctrls(ModeDecisionContext* ctx, uint8_t lpd0_lvl) {
     Pd0Ctrls* ctrls = &ctx->pd0_ctrls;
-    if (ctx->hbd_md) {
+    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         ctx->pd0_ctrls.pd0_level = PD0_LVL_0;
         return;
     }
@@ -6317,7 +6317,8 @@ static void set_spatial_sse_full_loop_level(ModeDecisionContext* ctx, uint8_t sp
 
 // Compute a qp-aware threshold based on the variance of the SB, used to apply selectively INTRA at PD0
 static uint64_t compute_intra_pd0_th(SequenceControlSet* scs, ModeDecisionContext* ctx) {
-    uint32_t fast_lambda      = ctx->hbd_md ? ctx->fast_lambda_md[EB_10_BIT_MD] : ctx->fast_lambda_md[EB_8_BIT_MD];
+    uint32_t fast_lambda      = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->fast_lambda_md[EB_10_BIT_MD]
+                                                                  : ctx->fast_lambda_md[EB_8_BIT_MD];
     uint32_t sb_size          = scs->super_block_size * scs->super_block_size;
     uint64_t cost_th_rate     = 1 << 13;
     uint64_t use_intra_pd0_th = 0;
@@ -6328,7 +6329,8 @@ static uint64_t compute_intra_pd0_th(SequenceControlSet* scs, ModeDecisionContex
 
 // Compute a qp-aware threshold based on the variance of the SB, used to apply selectively subres
 static uint64_t compute_subres_th(SequenceControlSet* scs, ModeDecisionContext* ctx) {
-    uint32_t fast_lambda   = ctx->hbd_md ? ctx->fast_lambda_md[EB_10_BIT_MD] : ctx->fast_lambda_md[EB_8_BIT_MD];
+    uint32_t fast_lambda   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->fast_lambda_md[EB_10_BIT_MD]
+                                                               : ctx->fast_lambda_md[EB_8_BIT_MD];
     uint32_t sb_size       = scs->super_block_size * scs->super_block_size;
     uint64_t cost_th_rate  = 1 << 13;
     uint64_t use_subres_th = 0;
@@ -7289,8 +7291,9 @@ void svt_aom_sig_deriv_enc_dec_pd0(SequenceControlSet* scs, PictureControlSet* p
             intra_level = 1;
         } else if (pd0_level <= PD0_LVL_2) {
             uint64_t use_intra_pd0_th = compute_intra_pd0_th(scs, ctx);
-            uint32_t fast_lambda = ctx->hbd_md ? ctx->fast_lambda_md[EB_10_BIT_MD] : ctx->fast_lambda_md[EB_8_BIT_MD];
-            uint64_t cost_64x64  = RDCOST(fast_lambda, 0, me_64x64_dist);
+            uint32_t fast_lambda      = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->fast_lambda_md[EB_10_BIT_MD]
+                                                                          : ctx->fast_lambda_md[EB_8_BIT_MD];
+            uint64_t cost_64x64       = RDCOST(fast_lambda, 0, me_64x64_dist);
 
             intra_level = (cost_64x64 < use_intra_pd0_th) ? 0 : 1;
         } else {
@@ -7350,7 +7353,7 @@ void svt_aom_sig_deriv_enc_dec_pd0(SequenceControlSet* scs, PictureControlSet* p
         ctx->parent_cost_bias = CLIP3(900, 1200, ctx->parent_cost_bias);
     }
 
-    if (allintra || pcs->hbd_md) {
+    if (allintra || SVT_EFFECTIVE_HBD_MD(pcs->hbd_md)) {
         ctx->pd0_use_src_samples = true;
     } else {
         ctx->pd0_use_src_samples = false;
@@ -7376,7 +7379,8 @@ void svt_aom_sig_deriv_enc_dec_pd0(SequenceControlSet* scs, PictureControlSet* p
         // then applies the result to the 64x64 block and to all children, therefore if incomplete 64x64 then shut subres
         // Use ME distortion and variance detector to enable subres
         uint64_t use_subres_th = compute_subres_th(scs, ctx);
-        uint32_t fast_lambda   = ctx->hbd_md ? ctx->fast_lambda_md[EB_10_BIT_MD] : ctx->fast_lambda_md[EB_8_BIT_MD];
+        uint32_t fast_lambda   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->fast_lambda_md[EB_10_BIT_MD]
+                                                                   : ctx->fast_lambda_md[EB_8_BIT_MD];
         uint64_t cost_64x64    = RDCOST(fast_lambda, 0, me_64x64_dist);
         if (pd0_level <= PD0_LVL_4) {
             if (is_islice || ppcs->transition_present == 1) {
@@ -8459,7 +8463,7 @@ uint8_t svt_aom_get_nsq_search_level_allintra(PictureControlSet* pcs, EncMode en
 */
 uint8_t svt_aom_get_bypass_encdec_default(EncMode enc_mode, uint8_t encoder_bit_depth) {
     uint8_t bypass_encdec = 1;
-    if (encoder_bit_depth == EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(encoder_bit_depth) == EB_EIGHT_BIT) {
         // 8bit settings
         if (enc_mode <= ENC_M2) {
             bypass_encdec = 0;
@@ -8479,7 +8483,7 @@ uint8_t svt_aom_get_bypass_encdec_default(EncMode enc_mode, uint8_t encoder_bit_
 
 uint8_t svt_aom_get_bypass_encdec_rtc(EncMode enc_mode, uint8_t encoder_bit_depth) {
     uint8_t bypass_encdec = 1;
-    if (encoder_bit_depth == EB_EIGHT_BIT) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(encoder_bit_depth) == EB_EIGHT_BIT) {
         // 8bit settings
         if (enc_mode <= ENC_M2) {
             bypass_encdec = 0;
@@ -9472,7 +9476,8 @@ void svt_aom_sig_deriv_mode_decision_config_default(SequenceControlSet* scs, Pic
     // Can only use light-PD1 under the following conditions
     // There is another check before PD1 is called; pred_depth_only is not checked here, because some modes
     // may force pred_depth_only at the light-pd1 detector
-    if (pcs->pic_lpd1_lvl && !(ppcs->hbd_md == 0 && pcs->pic_disallow_4x4 == true && scs->super_block_size == 64)) {
+    if (pcs->pic_lpd1_lvl &&
+        !(SVT_EFFECTIVE_HBD_MD(ppcs->hbd_md) == 0 && pcs->pic_disallow_4x4 == true && scs->super_block_size == 64)) {
         pcs->pic_lpd1_lvl = 0;
     }
 
@@ -9900,7 +9905,8 @@ void svt_aom_sig_deriv_mode_decision_config_rtc(SequenceControlSet* scs, Picture
     // Can only use light-PD1 under the following conditions
     // There is another check before PD1 is called; pred_depth_only is not checked here, because some modes
     // may force pred_depth_only at the light-pd1 detector
-    if (pcs->pic_lpd1_lvl && !(ppcs->hbd_md == 0 && pcs->pic_disallow_4x4 == true && scs->super_block_size == 64)) {
+    if (pcs->pic_lpd1_lvl &&
+        !(SVT_EFFECTIVE_HBD_MD(ppcs->hbd_md) == 0 && pcs->pic_disallow_4x4 == true && scs->super_block_size == 64)) {
         pcs->pic_lpd1_lvl = 0;
     }
 
