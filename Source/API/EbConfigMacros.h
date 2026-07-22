@@ -88,6 +88,9 @@
 #ifndef CONFIG_ENABLE_TPL
 #define CONFIG_ENABLE_TPL                   0
 #endif
+#ifndef CONFIG_ENABLE_VMAF
+#define CONFIG_ENABLE_VMAF                  0
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -187,6 +190,10 @@
 
 #ifndef CONFIG_ENABLE_TPL
 #define CONFIG_ENABLE_TPL                  1
+#endif
+
+#ifndef CONFIG_ENABLE_VMAF
+#define CONFIG_ENABLE_VMAF                 1
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every

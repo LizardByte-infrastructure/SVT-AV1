@@ -1618,6 +1618,7 @@ void svt_aom_pad_input_pictures(SequenceControlSet* scs, EbPictureBufferDesc* in
     }
 }
 
+#if CONFIG_ENABLE_VMAF
 /*********************************************************************************
  *
  * @brief
@@ -1901,6 +1902,7 @@ static void vmaf_preprocess_frame(PictureAnalysisContext* pa_ctx, PictureParentC
     /* Step 4: apply the unsharp mask in place, writing the sharpened luma back over the source. */
     vmaf_unsharp_apply_frame(luma, blur_plane, luma, pic_width, pic_height, y_stride, sharp_amount, delta_clip);
 }
+#endif // CONFIG_ENABLE_VMAF
 
 /* Picture Analysis Kernel */
 
@@ -1958,7 +1960,9 @@ EbErrorType svt_aom_picture_analysis_kernel_iter(void* context) {
         EbPictureBufferDesc* input_padded_pic;
         {
             if (scs->static_config.tune == TUNE_VMAF) {
+#if CONFIG_ENABLE_VMAF
                 vmaf_preprocess_frame(pa_ctx, pcs);
+#endif
             }
             // Padding for input pictures
             svt_aom_pad_input_pictures(scs, input_pic);
