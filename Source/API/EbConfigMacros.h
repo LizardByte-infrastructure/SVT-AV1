@@ -94,6 +94,9 @@
 #ifndef CONFIG_ENABLE_RESIZE
 #define CONFIG_ENABLE_RESIZE                0
 #endif
+#ifndef CONFIG_ENABLE_MD_CDF_UPDATE
+#define CONFIG_ENABLE_MD_CDF_UPDATE         0
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -201,6 +204,10 @@
 
 #ifndef CONFIG_ENABLE_RESIZE
 #define CONFIG_ENABLE_RESIZE               1
+#endif
+
+#ifndef CONFIG_ENABLE_MD_CDF_UPDATE
+#define CONFIG_ENABLE_MD_CDF_UPDATE        1
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every

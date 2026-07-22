@@ -8537,6 +8537,11 @@ static void set_cdf_controls(PictureControlSet* pcs, uint8_t update_cdf_level) {
 
     ctrl->update_mv = pcs->slice_type == I_SLICE ? 0 : ctrl->update_mv;
     ctrl->enabled   = ctrl->update_coef | ctrl->update_mv | ctrl->update_se;
+#if !CONFIG_ENABLE_MD_CDF_UPDATE
+    // MD-side CDF/stats adaptation is compiled out (svt_aom_update_stats stripped). It must stay
+    // disabled at runtime in this build (RTC-minimal: update_cdf_level==0 for M9+).
+    assert(!ctrl->enabled);
+#endif
 }
 
 /******************************************************
