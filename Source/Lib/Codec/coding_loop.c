@@ -1598,7 +1598,9 @@ static void update_b(PictureControlSet* pcs, EncDecContext* ctx, BlkStruct* blk_
     const BlockGeom*     blk_geom = ctx->blk_geom;
     SuperBlock*          sb_ptr   = md_ctx->sb_ptr;
     int                  sb_index = ctx->sb_index;
-    const uint16_t       tile_idx = ctx->tile_index;
+#if CONFIG_ENABLE_MD_CDF_UPDATE
+    const uint16_t tile_idx = ctx->tile_index;
+#endif
 
     if (!pcs->scs->allintra) {
         if (is_intra_mode(blk_ptr->block_mi.mode)) {
@@ -1690,6 +1692,7 @@ static void update_b(PictureControlSet* pcs, EncDecContext* ctx, BlkStruct* blk_
         md_ctx->blk_geom  = ctx->blk_geom;
         svt_aom_update_mi_map_enc_dec(blk_ptr, md_ctx, pcs);
     }
+#if CONFIG_ENABLE_MD_CDF_UPDATE
     if (pcs->cdf_ctrl.update_se) {
         // Update the partition Neighbor Array
 
@@ -1727,6 +1730,7 @@ static void update_b(PictureControlSet* pcs, EncDecContext* ctx, BlkStruct* blk_
                              1 /*allow_update_cdf*/);
         svt_aom_update_stats(pcs, blk_ptr, ctx->blk_org_y >> MI_SIZE_LOG2, ctx->blk_org_x >> MI_SIZE_LOG2);
     }
+#endif // CONFIG_ENABLE_MD_CDF_UPDATE
 
     // Copy final symbols and mode info from MD array to SB ptr
     // Data will be overwritten each iteration, so copying is useful. Data is updated at EntropyCoding.
