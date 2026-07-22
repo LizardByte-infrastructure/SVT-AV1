@@ -94,6 +94,9 @@
 #ifndef CONFIG_ENABLE_RESIZE
 #define CONFIG_ENABLE_RESIZE                0
 #endif
+#ifndef CONFIG_ENABLE_TX_PF_N2
+#define CONFIG_ENABLE_TX_PF_N2              0
+#endif
 #ifndef CONFIG_ENABLE_MD_CDF_UPDATE
 #define CONFIG_ENABLE_MD_CDF_UPDATE         0
 #endif
@@ -204,6 +207,10 @@
 
 #ifndef CONFIG_ENABLE_RESIZE
 #define CONFIG_ENABLE_RESIZE               1
+#endif
+
+#ifndef CONFIG_ENABLE_TX_PF_N2
+#define CONFIG_ENABLE_TX_PF_N2             1
 #endif
 
 #ifndef CONFIG_ENABLE_MD_CDF_UPDATE

@@ -3470,6 +3470,11 @@ static void set_pf_controls(ModeDecisionContext* ctx, uint8_t pf_level) {
         assert(0);
         break;
     }
+#if !CONFIG_ENABLE_TX_PF_N2
+    // N2 pruned transforms are compiled out in this build (never reached in RTC-minimal: pf_level is
+    // always 1/DEFAULT and full-loop only overrides to N4). Catch any preset that re-enables N2.
+    assert(pf_ctrls->pf_shape != N2_SHAPE);
+#endif
 }
 
 /*

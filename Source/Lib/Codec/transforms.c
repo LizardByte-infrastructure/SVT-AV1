@@ -3376,6 +3376,7 @@ void svt_av1_fwd_txfm2d_4x8_c(int16_t* input, int32_t* output, uint32_t input_st
         input, input_stride, output, &cfg, intermediate_transform_buffer, bit_depth);
 }
 
+#if CONFIG_ENABLE_TX_PF_N2
 static EbErrorType av1_estimate_transform_N2(int16_t* residual_buffer, uint32_t residual_stride, int32_t* coeff_buffer,
                                              uint32_t coeff_stride, TxSize transform_size, uint64_t* three_quad_energy,
                                              uint32_t bit_depth, TxType transform_type, PlaneType component_type)
@@ -3532,6 +3533,7 @@ static EbErrorType av1_estimate_transform_N2(int16_t* residual_buffer, uint32_t 
 
     return return_error;
 }
+#endif // CONFIG_ENABLE_TX_PF_N2
 
 static EbErrorType av1_estimate_transform_N4(int16_t* residual_buffer, uint32_t residual_stride, int32_t* coeff_buffer,
                                              uint32_t coeff_stride, TxSize transform_size, uint64_t* three_quad_energy,
@@ -3971,6 +3973,7 @@ EbErrorType svt_aom_estimate_transform(PictureControlSet* pcs, ModeDecisionConte
                                               bit_depth,
                                               transform_type,
                                               component_type);
+#if CONFIG_ENABLE_TX_PF_N2
     case N2_SHAPE:
         return av1_estimate_transform_N2(residual_buffer,
                                          residual_stride,
@@ -3981,6 +3984,7 @@ EbErrorType svt_aom_estimate_transform(PictureControlSet* pcs, ModeDecisionConte
                                          bit_depth,
                                          transform_type,
                                          component_type);
+#endif
     case N4_SHAPE:
         return av1_estimate_transform_N4(residual_buffer,
                                          residual_stride,
@@ -4001,6 +4005,8 @@ EbErrorType svt_aom_estimate_transform(PictureControlSet* pcs, ModeDecisionConte
                                               bit_depth,
                                               transform_type,
                                               component_type);
+    default:
+        break;
     }
 
     assert(0);
