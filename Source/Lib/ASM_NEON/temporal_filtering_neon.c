@@ -1460,27 +1460,43 @@ void svt_vmaf_apply_unsharp_row_neon(const uint8_t* src, const uint8_t* blur, ui
     const int16_t amount_s16    = (int16_t)(amount > INT16_MAX ? INT16_MAX : amount);
     const int16_t max_delta_s16 = (int16_t)(max_delta > INT16_MAX ? INT16_MAX : max_delta);
 
-    const int16x8_t clamp_max      = vdupq_n_s16(max_delta_s16);
-    const int16x8_t clamp_min      = vdupq_n_s16(-max_delta_s16);
-    const int16x8_t amount_neg_vec = vdupq_n_s16(-amount_s16);
+    const int16x8_t clamp_max  = vdupq_n_s16(max_delta_s16);
+    const int16x8_t clamp_min  = vdupq_n_s16(-max_delta_s16);
+    const int16x8_t amount_vec = vdupq_n_s16(amount_s16);
 
-    int j = 0;
-    do {
-        uint16x8_t b_u16 = vmovl_u8(vld1_u8(blur + j));
-        uint8x8_t  s_u8  = vld1_u8(src + j);
-        int16x8_t  s_s16 = vreinterpretq_s16_u16(vmovl_u8(s_u8));
+    int w = 0;
+    for (; w + 16 <= width; w += 16) {
+        uint8x16_t b_u8 = vld1q_u8(blur + w);
+        uint8x16_t s_u8 = vld1q_u8(src + w);
 
-        int16x8_t detail = vreinterpretq_s16_u16(vsubw_u8(b_u16, s_u8));
+        int16x8_t detail_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(s_u8), vget_low_u8(b_u8)));
+        int16x8_t detail_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(s_u8), vget_high_u8(b_u8)));
+        detail_lo           = vminq_s16(detail_lo, clamp_max);
+        detail_lo           = vmaxq_s16(detail_lo, clamp_min);
+        detail_hi           = vminq_s16(detail_hi, clamp_max);
+        detail_hi           = vmaxq_s16(detail_hi, clamp_min);
+
+        int16x8_t res_lo = vqdmulhq_s16(detail_lo, amount_vec);
+        int16x8_t res_hi = vqdmulhq_s16(detail_hi, amount_vec);
+        res_lo           = vreinterpretq_s16_u16(vaddw_u8(vreinterpretq_u16_s16(res_lo), vget_low_u8(s_u8)));
+        res_hi           = vreinterpretq_s16_u16(vaddw_u8(vreinterpretq_u16_s16(res_hi), vget_high_u8(s_u8)));
+
+        vst1_u8(dst + w + 0, vqmovun_s16(res_lo));
+        vst1_u8(dst + w + 8, vqmovun_s16(res_hi));
+    }
+    if (w + 8 <= width) {
+        uint8x8_t b_u8 = vld1_u8(blur + w);
+        uint8x8_t s_u8 = vld1_u8(src + w);
+
+        int16x8_t detail = vreinterpretq_s16_u16(vsubl_u8(s_u8, b_u8));
         detail           = vminq_s16(detail, clamp_max);
         detail           = vmaxq_s16(detail, clamp_min);
 
-        int16x8_t res_s16 = vqdmulhq_s16(detail, amount_neg_vec);
-        res_s16           = vaddq_s16(s_s16, res_s16);
+        int16x8_t res_s16 = vqdmulhq_s16(detail, amount_vec);
+        res_s16           = vreinterpretq_s16_u16(vaddw_u8(vreinterpretq_u16_s16(res_s16), s_u8));
 
-        vst1_u8(dst + j, vqmovun_s16(res_s16));
-
-        j += 8;
-    } while (j != width);
+        vst1_u8(dst + w, vqmovun_s16(res_s16));
+    }
 }
 
 void svt_vmaf_vpass_row_neon(const int16_t* r0, const int16_t* r1, const int16_t* r2, const int16_t* r3,
