@@ -423,8 +423,10 @@ static void cdef_seg_search(CdefContext* ctx, PictureControlSet* pcs, SequenceCo
             uint8_t (*dir)[CDEF_NBLOCKS][CDEF_NBLOCKS] = &pcs->cdef_dir_data[fb_idx].dir;
             int32_t (*var)[CDEF_NBLOCKS][CDEF_NBLOCKS] = &pcs->cdef_dir_data[fb_idx].var;
             for (int pli = 0; pli < num_planes; pli++) {
+#if !CDEF_8BITS_PATH || CONFIG_ENABLE_HIGH_BIT_DEPTH
                 int32_t ysize = (nvb << mi_high_l2[pli]) + boff + toff;
                 int32_t xsize = (nhb << mi_wide_l2[pli]) + roff + loff;
+#endif
 #if CDEF_8BITS_PATH
                 // 8-bit content (RTC): filter via the boundary-aware hybrid. Build the 8-bit in8
                 // buffer DIRECTLY from recon (interior AND frame-edge fbs); off-frame halo is left
