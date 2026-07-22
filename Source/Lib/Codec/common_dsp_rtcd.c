@@ -865,7 +865,9 @@ void svt_aom_setup_common_rtcd_internal(EbCpuFlags flags) {
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_SSE41_AVX2(svt_av1_highbd_warp_affine, svt_av1_highbd_warp_affine_c, svt_av1_highbd_warp_affine_sse4_1, svt_av1_highbd_warp_affine_avx2);
 #endif
+#if CONFIG_ENABLE_WARP
     SET_SSE41_AVX2(svt_av1_warp_affine, svt_av1_warp_affine_c, svt_av1_warp_affine_sse4_1, svt_av1_warp_affine_avx2);
+#endif
 
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_SSE2(svt_aom_highbd_lpf_horizontal_4, svt_aom_highbd_lpf_horizontal_4_c, svt_aom_highbd_lpf_horizontal_4_sse2);
@@ -1436,7 +1438,9 @@ void svt_aom_setup_common_rtcd_internal(EbCpuFlags flags) {
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_NEON_SVE(svt_av1_highbd_warp_affine, svt_av1_highbd_warp_affine_c, svt_av1_highbd_warp_affine_neon, svt_av1_highbd_warp_affine_sve);
 #endif
+#if CONFIG_ENABLE_WARP
     SET_NEON_NEON_I8MM_SVE(svt_av1_warp_affine, svt_av1_warp_affine_c, svt_av1_warp_affine_neon, svt_av1_warp_affine_neon_i8mm, svt_av1_warp_affine_sve);
+#endif
 
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_NEON(svt_aom_highbd_lpf_horizontal_4, svt_aom_highbd_lpf_horizontal_4_c, svt_aom_highbd_lpf_horizontal_4_neon);
@@ -2001,7 +2005,9 @@ void svt_aom_setup_common_rtcd_internal(EbCpuFlags flags) {
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_ONLY_C(svt_av1_highbd_warp_affine, svt_av1_highbd_warp_affine_c);
 #endif
+#if CONFIG_ENABLE_WARP
     SET_ONLY_C(svt_av1_warp_affine, svt_av1_warp_affine_c);
+#endif
 
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     SET_ONLY_C(svt_aom_highbd_lpf_horizontal_4, svt_aom_highbd_lpf_horizontal_4_c);

@@ -1630,6 +1630,7 @@ void svt_av1_calc_target_weighted_pred_left_c(uint8_t is16bit, MacroBlockD* xd, 
     }
 }
 
+#if CONFIG_ENABLE_WARP
 static void av1_make_masked_warp_inter_predictor(uint8_t* src_ptr, uint8_t* src_2b_ptr, uint32_t src_stride,
                                                  uint16_t buf_width, uint16_t buf_height, uint8_t* dst_ptr,
                                                  uint32_t dst_stride, const BlockSize bsize, uint8_t bwidth,
@@ -1706,6 +1707,7 @@ static void av1_make_masked_warp_inter_predictor(uint8_t* src_ptr, uint8_t* src_
                                            is16bit);
     conv_params->dst = NULL; // null out the pointer to avoid misuse
 }
+#endif // CONFIG_ENABLE_WARP
 
 // This function has a structure similar to av1_build_obmc_inter_prediction
 //
@@ -2508,6 +2510,7 @@ void svt_aom_enc_make_inter_predictor(SequenceControlSet* scs, uint8_t* src_ptr,
                                       int32_t dst_stride, uint8_t plane, const uint32_t ss_y, const uint32_t ss_x,
                                       uint8_t bit_depth, uint8_t use_intrabc, uint8_t is_masked_compound,
                                       uint8_t is16bit, bool is_wm, WarpedMotionParams* wm_params) {
+#if CONFIG_ENABLE_WARP
     if (is_wm) {
         if (is_masked_compound) {
             conv_params->do_average = 0;
@@ -2549,7 +2552,12 @@ void svt_aom_enc_make_inter_predictor(SequenceControlSet* scs, uint8_t* src_ptr,
                            ss_x,
                            ss_y,
                            conv_params);
-    } else {
+    } else
+#else
+    (void)is_wm;
+    (void)wm_params;
+#endif
+    {
         SubpelParams subpel_params;
         int32_t      pos_y, pos_x;
 
