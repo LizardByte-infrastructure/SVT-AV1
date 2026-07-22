@@ -360,6 +360,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(&svt_vmaf_hpass_row_avx2)));
 #endif  // ARCH_X86_64
 
+#ifdef ARCH_AARCH64
+INSTANTIATE_TEST_SUITE_P(
+    NEON, VmafHpassRowTest,
+    ::testing::Combine(::testing::ValuesIn(kVmafWidths),
+                       ::testing::Values(&svt_vmaf_hpass_row_neon)));
+#endif  // ARCH_AARCH64
+
 using VmafVpassRowFunc = void (*)(const int16_t *r0, const int16_t *r1,
                                   const int16_t *r2, const int16_t *r3,
                                   const int16_t *r4, uint8_t *blur_row,

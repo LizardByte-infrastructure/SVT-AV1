@@ -1588,44 +1588,83 @@ uint32_t svt_vmaf_count_detail_le_neon(const uint8_t* src, const uint8_t* blur, 
     return count - vaddvq_s32(vaddq_s32(count_vec0, count_vec1));
 }
 
-static inline uint32_t vmaf_hpass_in_neon(const uint8_t* src_row, int width, int i) {
-    if (i < 0) {
-        i = 0;
-    }
-    if (i >= width) {
-        i = width - 1;
-    }
-    return src_row[i];
-}
+DECLARE_ALIGNED(16, static const uint8_t, vmaf_hpass_first8_tbl[5 * 8]) = {
+    // clang-format off
+    8, 8, 8, 8, 0, 0, 0, 1,
+    8, 8, 8, 0, 0, 0, 1, 2,
+    8, 8, 0, 0, 0, 1, 2, 3,
+    8, 0, 0, 0, 1, 2, 3, 4,
+    0, 0, 0, 1, 2, 3, 4, 5,
+    // clang-format on
+};
 
-static inline uint32_t vmaf_hpass_out_scalar_neon(const uint8_t* src_row, int width, int j) {
-    const int c = j - 4;
-    return 1u * vmaf_hpass_in_neon(src_row, width, c - 2) + 4u * vmaf_hpass_in_neon(src_row, width, c - 1) +
-        6u * vmaf_hpass_in_neon(src_row, width, c) + 4u * vmaf_hpass_in_neon(src_row, width, c + 1) +
-        1u * vmaf_hpass_in_neon(src_row, width, c + 2);
-}
+DECLARE_ALIGNED(16, static const uint8_t, vmaf_hpass_last4_tbl[2 * 8]) = {
+    // clang-format off
+    1, 2, 3, 3, 3, 3, 3, 3,
+    2, 3, 3, 3, 3, 3, 3, 3,
+    // clang-format on
+};
 
 void svt_vmaf_hpass_row_neon(const uint8_t* src_row, int width, int16_t* h_row) {
-    const int out_count = width + 4;
-    int       j         = 0;
-    for (; j < 6 && j < out_count; j++) {
-        h_row[j] = (int16_t)vmaf_hpass_out_scalar_neon(src_row, width, j);
-    }
-    for (; j <= width - 6; j += 8) {
+    assert(width % 8 == 0 && "width must be multiple of 8");
+
+    const uint8x16_t   src0    = vcombine_u8(vld1_u8(src_row), vdup_n_u8(0));
+    const uint8x16x2_t tbl0123 = vld1q_u8_x2(vmaf_hpass_first8_tbl);
+    const uint8x8_t    tbl4    = vld1_u8(vmaf_hpass_first8_tbl + 32);
+
+    const uint8x16_t s01 = vqtbl1q_u8(src0, tbl0123.val[0]);
+    const uint8x16_t s23 = vqtbl1q_u8(src0, tbl0123.val[1]);
+    const uint8x8_t  s4  = vtbl1_u8(vget_low_u8(src0), tbl4);
+
+    uint16x8_t acc = vaddl_u8(vget_low_u8(s01), s4);
+    acc            = vmlaq_n_u16(acc, vaddl_u8(vget_high_u8(s01), vget_high_u8(s23)), 4);
+    acc            = vmlal_u8(acc, vget_low_u8(s23), vdup_n_u8(6));
+
+    vst1q_s16(h_row, vreinterpretq_s16_u16(acc));
+
+    int j = 8;
+    for (; j + 16 <= width; j += 16) {
         const uint8_t* base = src_row + (j - 6);
-        uint16x8_t     tap0 = vmovl_u8(vld1_u8(base + 0));
-        uint16x8_t     tap1 = vmovl_u8(vld1_u8(base + 1));
-        uint16x8_t     tap2 = vmovl_u8(vld1_u8(base + 2));
-        uint16x8_t     tap3 = vmovl_u8(vld1_u8(base + 3));
-        uint16x8_t     tap4 = vmovl_u8(vld1_u8(base + 4));
-        uint16x8_t     acc  = vaddq_u16(tap0, tap4);
-        acc                 = vaddq_u16(acc, vmulq_n_u16(vaddq_u16(tap1, tap3), 4));
-        acc                 = vaddq_u16(acc, vmulq_n_u16(tap2, 6));
-        vst1q_s16(h_row + j, vreinterpretq_s16_u16(acc));
+
+        uint8x16_t s[5];
+        load_u8_16x5(base, 1, &s[0], &s[1], &s[2], &s[3], &s[4]);
+
+        uint16x8_t acc0 = vaddl_u8(vget_low_u8(s[0]), vget_low_u8(s[4]));
+        uint16x8_t acc1 = vaddl_u8(vget_high_u8(s[0]), vget_high_u8(s[4]));
+        acc0            = vmlaq_n_u16(acc0, vaddl_u8(vget_low_u8(s[1]), vget_low_u8(s[3])), 4);
+        acc1            = vmlaq_n_u16(acc1, vaddl_u8(vget_high_u8(s[1]), vget_high_u8(s[3])), 4);
+        acc0            = vmlal_u8(acc0, vget_low_u8(s[2]), vdup_n_u8(6));
+        acc1            = vmlal_u8(acc1, vget_high_u8(s[2]), vdup_n_u8(6));
+
+        vst1q_s16(h_row + j + 0, vreinterpretq_s16_u16(acc0));
+        vst1q_s16(h_row + j + 8, vreinterpretq_s16_u16(acc1));
     }
-    for (; j < out_count; j++) {
-        h_row[j] = (int16_t)vmaf_hpass_out_scalar_neon(src_row, width, j);
+    if (j + 8 <= width) {
+        const uint8_t* base = src_row + (j - 6);
+
+        uint8x8_t s[5];
+        load_u8_8x5(base, 1, &s[0], &s[1], &s[2], &s[3], &s[4]);
+
+        uint16x8_t acc0 = vaddl_u8(s[0], s[4]);
+        acc0            = vmlaq_n_u16(acc0, vaddl_u8(s[1], s[3]), 4);
+        acc0            = vmlal_u8(acc0, s[2], vdup_n_u8(6));
+
+        vst1q_s16(h_row + j, vreinterpretq_s16_u16(acc0));
+
+        j += 8;
     }
+
+    const uint8x8_t  s0_tail  = load_u8_4x1(src_row + width - 6);
+    const uint8x8_t  s1_tail  = load_u8_4x1(src_row + width - 5);
+    const uint8x8_t  s2_tail  = load_u8_4x1(src_row + width - 4);
+    const uint8x16_t tbl_tail = vld1q_u8(vmaf_hpass_last4_tbl);
+    const uint8x16_t s34_tail = vqtbl1q_u8(vcombine_u8(s2_tail, vdup_n_u8(0)), tbl_tail);
+
+    uint16x8_t acc_tail = vaddl_u8(s0_tail, vget_high_u8(s34_tail));
+    acc_tail            = vmlaq_n_u16(acc_tail, vaddl_u8(s1_tail, vget_low_u8(s34_tail)), 4);
+    acc_tail            = vmlal_u8(acc_tail, s2_tail, vdup_n_u8(6));
+
+    vst1_s16(h_row + width, vget_low_s16(vreinterpretq_s16_u16(acc_tail)));
 }
 
 float svt_vmaf_compute_gradient_coherence_neon(const uint8_t* src, int width, int height, int stride) {
