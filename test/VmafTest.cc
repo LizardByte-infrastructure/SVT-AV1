@@ -264,6 +264,102 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(&svt_vmaf_apply_unsharp_row_neon)));
 #endif  // ARCH_AARCH64
 
+using VmafHpassRowFunc = void (*)(const uint8_t *src_row, int width,
+                                  int16_t *h_row);
+
+using VmafHpassRowParam = std::tuple<int, VmafHpassRowFunc>;
+
+class VmafHpassRowTest : public ::testing::TestWithParam<VmafHpassRowParam> {
+  public:
+    VmafHpassRowTest()
+        : width_(TEST_GET_PARAM(0)), test_func_(TEST_GET_PARAM(1)) {
+    }
+
+    ~VmafHpassRowTest() override = default;
+
+  protected:
+    static const int kIterations = 100;
+    static const int kStepsX = 2;
+
+    void SetUp() override {
+        const size_t src_size = (size_t)width_ * sizeof(*src_);
+        const size_t out_size =
+            ((size_t)width_ + 2 * kStepsX) * sizeof(*h_ref_);
+
+        src_ = static_cast<uint8_t *>(svt_aom_memalign(16, src_size));
+        h_ref_ = static_cast<int16_t *>(svt_aom_memalign(16, out_size));
+        h_tst_ = static_cast<int16_t *>(svt_aom_memalign(16, out_size));
+        ASSERT_NE(src_, nullptr);
+        ASSERT_NE(h_ref_, nullptr);
+        ASSERT_NE(h_tst_, nullptr);
+    }
+
+    void TearDown() override {
+        svt_aom_free(src_);
+        svt_aom_free(h_ref_);
+        svt_aom_free(h_tst_);
+    }
+
+    int width_;
+    VmafHpassRowFunc test_func_;
+    uint8_t *src_ = nullptr;
+    int16_t *h_ref_ = nullptr;
+    int16_t *h_tst_ = nullptr;
+
+    void run_match_test() {
+        SVTRandom rnd(8, false);
+        const int out_count = width_ + 2 * kStepsX;
+
+        for (int i = 0; i < kIterations; ++i) {
+            for (int x = 0; x < width_; ++x) {
+                src_[x] = rnd.Rand8();
+            }
+
+            svt_vmaf_hpass_row_c(src_, width_, h_ref_);
+            test_func_(src_, width_, h_tst_);
+
+            for (int x = 0; x < out_count; ++x) {
+                ASSERT_EQ(h_ref_[x], h_tst_[x])
+                    << "h_row mismatch, x " << x << ", width " << width_
+                    << ", iteration " << i;
+            }
+        }
+    }
+
+    void run_max_input_test() {
+        const int out_count = width_ + 2 * kStepsX;
+
+        for (int x = 0; x < width_; ++x) {
+            src_[x] = 255;
+        }
+
+        svt_vmaf_hpass_row_c(src_, width_, h_ref_);
+        test_func_(src_, width_, h_tst_);
+
+        for (int x = 0; x < out_count; ++x) {
+            ASSERT_EQ(h_ref_[x], h_tst_[x])
+                << "h_row mismatch, x " << x << ", width " << width_;
+        }
+    }
+};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VmafHpassRowTest);
+
+TEST_P(VmafHpassRowTest, MatchTest) {
+    run_match_test();
+}
+
+TEST_P(VmafHpassRowTest, MaxInputTest) {
+    run_max_input_test();
+}
+
+#ifdef ARCH_X86_64
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, VmafHpassRowTest,
+    ::testing::Combine(::testing::ValuesIn(kVmafWidths),
+                       ::testing::Values(&svt_vmaf_hpass_row_avx2)));
+#endif  // ARCH_X86_64
+
 using VmafVpassRowFunc = void (*)(const int16_t *r0, const int16_t *r1,
                                   const int16_t *r2, const int16_t *r3,
                                   const int16_t *r4, uint8_t *blur_row,
