@@ -616,6 +616,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_AVX2(svt_av1_calc_target_weighted_pred_above, svt_av1_calc_target_weighted_pred_above_c,svt_av1_calc_target_weighted_pred_above_avx2);
     SET_AVX2(svt_av1_calc_target_weighted_pred_left, svt_av1_calc_target_weighted_pred_left_c,svt_av1_calc_target_weighted_pred_left_avx2);
 #endif
+#if CONFIG_ENABLE_RESIZE
     SET_AVX2(svt_av1_interpolate_core, svt_av1_interpolate_core_c, svt_av1_interpolate_core_avx2);
     SET_AVX2(svt_av1_down2_symeven, svt_av1_down2_symeven_c, svt_av1_down2_symeven_avx2);
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
@@ -624,6 +625,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_AVX2(svt_av1_highbd_resize_plane, svt_av1_highbd_resize_plane_c, svt_av1_highbd_resize_plane_avx2);
 #endif
     SET_AVX2(svt_av1_resize_plane, svt_av1_resize_plane_c, svt_av1_resize_plane_avx2);
+#endif
     SET_AVX2(svt_av1_compute_cul_level, svt_av1_compute_cul_level_c, svt_av1_compute_cul_level_avx2);
     SET_AVX2(svt_ssim_8x8, svt_ssim_8x8_c, svt_ssim_8x8_avx2);
     SET_AVX2(svt_ssim_4x4, svt_ssim_4x4_c, svt_ssim_4x4_avx2);
@@ -1018,6 +1020,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_ONLY_C(svt_av1_calc_target_weighted_pred_above, svt_av1_calc_target_weighted_pred_above_c);
     SET_NEON(svt_av1_calc_target_weighted_pred_left, svt_av1_calc_target_weighted_pred_left_c, svt_av1_calc_target_weighted_pred_left_neon);
 #endif
+#if CONFIG_ENABLE_RESIZE
     SET_ONLY_C(svt_av1_interpolate_core, svt_av1_interpolate_core_c);
     SET_ONLY_C(svt_av1_down2_symeven, svt_av1_down2_symeven_c);
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
@@ -1026,6 +1029,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_ONLY_C(svt_av1_highbd_resize_plane, svt_av1_highbd_resize_plane_c);
 #endif
     SET_ONLY_C(svt_av1_resize_plane, svt_av1_resize_plane_c);
+#endif
     SET_NEON_SVE(svt_av1_compute_cul_level, svt_av1_compute_cul_level_c, svt_av1_compute_cul_level_neon, svt_av1_compute_cul_level_sve);
     SET_NEON_NEON_DOTPROD(svt_ssim_8x8, svt_ssim_8x8_c, svt_ssim_8x8_c, svt_ssim_8x8_neon_dotprod);
     SET_NEON_NEON_DOTPROD(svt_ssim_4x4, svt_ssim_4x4_c, svt_ssim_4x4_c, svt_ssim_4x4_neon_dotprod);
@@ -1418,6 +1422,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_ONLY_C(svt_av1_calc_target_weighted_pred_above, svt_av1_calc_target_weighted_pred_above_c);
     SET_ONLY_C(svt_av1_calc_target_weighted_pred_left, svt_av1_calc_target_weighted_pred_left_c);
 #endif
+#if CONFIG_ENABLE_RESIZE
     SET_ONLY_C(svt_av1_interpolate_core, svt_av1_interpolate_core_c);
     SET_ONLY_C(svt_av1_down2_symeven, svt_av1_down2_symeven_c);
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
@@ -1426,6 +1431,7 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_ONLY_C(svt_av1_highbd_resize_plane, svt_av1_highbd_resize_plane_c);
 #endif
     SET_ONLY_C(svt_av1_resize_plane, svt_av1_resize_plane_c);
+#endif
     SET_ONLY_C(svt_av1_compute_cul_level, svt_av1_compute_cul_level_c);
     SET_ONLY_C(svt_ssim_8x8, svt_ssim_8x8_c);
     SET_ONLY_C(svt_ssim_4x4, svt_ssim_4x4_c);
