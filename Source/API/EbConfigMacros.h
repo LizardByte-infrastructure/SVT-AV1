@@ -82,6 +82,9 @@
 #ifndef CONFIG_ENABLE_TEMPORAL_FILTERING
 #define CONFIG_ENABLE_TEMPORAL_FILTERING    0
 #endif
+#ifndef CONFIG_ENABLE_WARP
+#define CONFIG_ENABLE_WARP                  0
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -173,6 +176,10 @@
 
 #ifndef CONFIG_ENABLE_TEMPORAL_FILTERING
 #define CONFIG_ENABLE_TEMPORAL_FILTERING   1
+#endif
+
+#ifndef CONFIG_ENABLE_WARP
+#define CONFIG_ENABLE_WARP                 1
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every

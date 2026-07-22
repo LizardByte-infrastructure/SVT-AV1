@@ -6628,6 +6628,7 @@ static void get_start_end_tx_depth(PictureControlSet* pcs, ModeDecisionContext* 
 
 // Update the MV-diff signaling fast rate. Intended to be called when a unipred MV is changed after a refinement
 // stage (e.g. WM/OBMC refinement).
+#if CONFIG_ENABLE_WARP || CONFIG_ENABLE_OBMC
 static INLINE void update_refined_mv_fast_rate(ModeDecisionContext* ctx, ModeDecisionCandidateBuffer* cand_bf,
                                                ModeDecisionCandidate* cand, Mv default_mv, Mv default_ref_mv) {
     const int32_t default_mv_rate = svt_av1_mv_bit_cost(&default_mv,
@@ -6643,9 +6644,15 @@ static INLINE void update_refined_mv_fast_rate(ModeDecisionContext* ctx, ModeDec
 
     cand_bf->fast_luma_rate = cand_bf->fast_luma_rate + refined_mv_rate - default_mv_rate;
 }
+#endif // CONFIG_ENABLE_WARP || CONFIG_ENABLE_OBMC
 
 static INLINE void opt_non_translation_motion_mode(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                                    ModeDecisionCandidateBuffer* cand_bf, ModeDecisionCandidate* cand) {
+#if !(CONFIG_ENABLE_WARP || CONFIG_ENABLE_OBMC)
+    (void)pcs;
+    (void)cand_bf;
+#endif
+#if CONFIG_ENABLE_WARP
     MdStage warp_refine_mds = ctx->wm_ctrls.refine_level == 1 ? MD_STAGE_1
         : ctx->wm_ctrls.refine_level == 2                     ? MD_STAGE_3
                                                               : INVALID_MD_STAGE;
@@ -6686,6 +6693,7 @@ static INLINE void opt_non_translation_motion_mode(PictureControlSet* pcs, ModeD
             cand->drl_index             = default_drl_idx;
         }
     }
+#endif
     MdStage obmc_refine_mds = (ctx->obmc_ctrls.refine_level == 1 || ctx->obmc_ctrls.refine_level == 2) ? MD_STAGE_1
         : (ctx->obmc_ctrls.refine_level == 3 || ctx->obmc_ctrls.refine_level == 4)                     ? MD_STAGE_3
                                                                                    : INVALID_MD_STAGE;
