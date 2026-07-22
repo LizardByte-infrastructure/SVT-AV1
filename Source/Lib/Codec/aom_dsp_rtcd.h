@@ -1397,7 +1397,6 @@ uint32_t svt_vmaf_compute_avg_mad_neon(const uint8_t *src, int width, int height
 uint32_t svt_vmaf_compute_avg_mad_neon_dotprod(const uint8_t *src, int width, int height, int stride);
 uint32_t svt_vmaf_compute_avg_mad_neon_i8mm(const uint8_t *src, int width, int height, int stride);
 void svt_vmaf_apply_unsharp_row_neon(const uint8_t *src, const uint8_t *blur, uint8_t *dst, int width, int amount, int32_t max_delta);
-void svt_vmaf_apply_unsharp_row_sve2(const uint8_t *src, const uint8_t *blur, uint8_t *dst, int width, int amount, int32_t max_delta);
 void svt_vmaf_vpass_row_neon(const int16_t *r0, const int16_t *r1, const int16_t *r2, const int16_t *r3, const int16_t *r4, uint8_t *blur_row, int width, int steps_x);
 float svt_vmaf_compute_gradient_coherence_neon(const uint8_t *src, int width, int height, int stride);
 uint32_t svt_vmaf_count_detail_le_neon(const uint8_t *src, const uint8_t *blur, int width, int height, int src_stride, int thresh);
