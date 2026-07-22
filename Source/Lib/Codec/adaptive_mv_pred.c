@@ -1480,7 +1480,7 @@ void svt_aom_update_mi_map_enc_dec(BlkStruct* blk_ptr, ModeDecisionContext* ctx,
 
     // update palette_colors mi map when input bit depth is 10bit and hbd mode decision is 0 (8bit MD)
     // palette_colors were scaled to 10bit in svt_aom_encode_decode so here we need to update mi map for entropy coding
-    if (ctx->encoder_bit_depth > EB_EIGHT_BIT && ctx->hbd_md == 0) {
+    if (SVT_EFFECTIVE_BIT_DEPTH(ctx->encoder_bit_depth) > EB_EIGHT_BIT && SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) == 0) {
         if (mbmi->palette_mode_info.palette_size) {
             svt_memcpy(mbmi->palette_mode_info.palette_colors,
                        blk_ptr->palette_info->pmi.palette_colors,

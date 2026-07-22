@@ -232,6 +232,21 @@
 #define CDEF_8BITS_PATH 0
 #endif
 
+// When high-bit-depth (10/12-bit) support is compiled out, fold the effective encoder bit depth to
+// the compile-time constant EB_EIGHT_BIT so that `bit_depth > EB_EIGHT_BIT` (and derived 16-bit)
+// branches become dead and are eliminated by the optimizer -- no per-site #if guards, no empty ifs.
+#if CONFIG_ENABLE_HIGH_BIT_DEPTH
+#define SVT_EFFECTIVE_BIT_DEPTH(bit_depth) (bit_depth)
+#define SVT_EFFECTIVE_IS_16BIT_PIPELINE(v) (v)
+#define SVT_EFFECTIVE_HBD_MD(v)            (v)
+#else
+// The dead ternary branch keeps the argument "used" (avoids -Wunused on locals that only feed this
+// macro) while still folding to a compile-time constant so branches are eliminated by the optimizer.
+#define SVT_EFFECTIVE_BIT_DEPTH(bit_depth) (0 ? (bit_depth) : EB_EIGHT_BIT)
+#define SVT_EFFECTIVE_IS_16BIT_PIPELINE(v) (0 ? (v) : 0)
+#define SVT_EFFECTIVE_HBD_MD(v)            (0 ? (v) : 0)
+#endif
+
 // clang-format on
 
 #endif // EbConfigMacros_h

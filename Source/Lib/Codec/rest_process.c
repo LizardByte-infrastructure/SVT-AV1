@@ -87,7 +87,7 @@ EbErrorType svt_aom_rest_context_ctor(EbThreadContext* thread_ctx, const EbEncHa
     context_ptr->picture_demux_fifo_ptr = svt_system_resource_get_producer_fifo(
         enc_handle_ptr->picture_demux_results_resource_ptr, demux_index);
 
-    bool    is_16bit           = scs->is_16bit_pipeline;
+    bool    is_16bit           = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
     uint8_t enable_restoration = allintra
         ? svt_aom_get_enable_restoration_allintra(config->enc_mode, config->enable_restoration_filtering)
         : rtc_tune
@@ -264,7 +264,7 @@ EbErrorType svt_aom_rest_kernel_iter(void* context) {
     PictureControlSet*       pcs          = (PictureControlSet*)cdef_results->pcs_wrapper->object_ptr;
     PictureParentControlSet* ppcs         = pcs->ppcs;
     SequenceControlSet*      scs          = pcs->scs;
-    bool                     is_16bit     = scs->is_16bit_pipeline;
+    bool                     is_16bit     = SVT_EFFECTIVE_IS_16BIT_PIPELINE(scs->is_16bit_pipeline);
 #if CONFIG_ENABLE_RESTORATION
     FrameHeader* frm_hdr = &ppcs->frm_hdr;
     Av1Common*   cm      = ppcs->av1_cm;
@@ -379,7 +379,7 @@ EbErrorType svt_aom_rest_kernel_iter(void* context) {
             } else {
                 // convert non-reference frame buffer from 16-bit to 8-bit, to export recon and
                 // psnr/ssim calculation
-                if (is_16bit && scs->static_config.encoder_bit_depth == EB_EIGHT_BIT) {
+                if (is_16bit && SVT_EFFECTIVE_BIT_DEPTH(scs->static_config.encoder_bit_depth) == EB_EIGHT_BIT) {
                     EbPictureBufferDesc* ref_pic_ptr       = ppcs->enc_dec_ptr->recon_pic;
                     EbPictureBufferDesc* ref_pic_16bit_ptr = ppcs->enc_dec_ptr->recon_pic_16bit;
                     // Y

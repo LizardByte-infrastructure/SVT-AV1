@@ -311,7 +311,7 @@ static int64_t pick_interintra_wedge(PictureControlSet* pcs, ModeDecisionContext
     DECLARE_ALIGNED(32, int16_t, residual1[MAX_INTERINTRA_SB_SQUARE]); // src - pred1
     DECLARE_ALIGNED(32, int16_t, diff10[MAX_INTERINTRA_SB_SQUARE]); // pred1 - pred0
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
-    if (ctx->hbd_md) {
+    if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
         svt_aom_highbd_subtract_block(bh, bw, residual1, bw, src_buf, src_stride, p1, bw, EB_TEN_BIT);
         svt_aom_highbd_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw, EB_TEN_BIT);
 
@@ -334,12 +334,13 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
     DECLARE_ALIGNED(16, uint8_t, tmp_buf[2 * MAX_INTERINTRA_SB_SQUARE]);
     DECLARE_ALIGNED(16, uint8_t, ii_pred_buf[2 * MAX_INTERINTRA_SB_SQUARE]);
     // get inter pred for ref0
-    EbPictureBufferDesc* src_pic = ctx->hbd_md ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
+    EbPictureBufferDesc* src_pic = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit : pcs->ppcs->enhanced_pic;
     uint16_t* src_buf_hbd = (uint16_t*)src_pic->y_buffer + (ctx->blk_org_x) + (ctx->blk_org_y) * src_pic->y_stride;
     uint8_t*  src_buf     = src_pic->y_buffer + (ctx->blk_org_x) + (ctx->blk_org_y) * src_pic->y_stride;
 
-    uint8_t  bit_depth   = ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT;
-    uint32_t full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint8_t  bit_depth   = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT;
+    uint32_t full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                             : ctx->full_lambda_md[EB_8_BIT_MD];
 
     uint32_t            bwidth  = ctx->blk_geom->bwidth;
     uint32_t            bheight = ctx->blk_geom->bheight;
@@ -360,7 +361,7 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
             pcs->ppcs->enhanced_pic,
             (EbReferenceObject*)pcs->ref_pic_ptr_array[list_idx0][ref_idx_l0]->object_ptr,
             &ref_pic_list0,
-            ctx->hbd_md);
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md));
     }
     pred_desc.y_buffer = tmp_buf;
 
@@ -389,7 +390,7 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
                              0, //output org_x,
                              0, //output org_y,
                              PICTURE_BUFFER_DESC_LUMA_MASK,
-                             ctx->hbd_md ? EB_TEN_BIT : EB_EIGHT_BIT,
+                             SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? EB_TEN_BIT : EB_EIGHT_BIT,
                              0); // is_16bit_pipeline
 
     assert(svt_aom_is_interintra_wedge_used(ctx->blk_geom->bsize)); //if not I need to add nowedge path!!
@@ -405,7 +406,7 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
         const int bsize_group = eb_size_group_lookup[ctx->blk_geom->bsize];
         const int rmode       = ctx->md_rate_est_ctx->inter_intra_mode_fac_bits[bsize_group][interintra_mode];
         // av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
-        if (ctx->hbd_md) {
+        if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
             svt_aom_combine_interintra_highbd(interintra_mode, // mode,
                                               0, // use_wedge_interintra,
                                               0, // cand->interintra_wedge_index,
@@ -442,7 +443,7 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
                                          ctx->blk_geom->bsize,
                                          bwidth,
                                          bheight,
-                                         ctx->hbd_md ? (uint8_t*)src_buf_hbd : src_buf,
+                                         SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? (uint8_t*)src_buf_hbd : src_buf,
                                          src_pic->y_stride,
                                          ii_pred_buf,
                                          bwidth,
@@ -459,7 +460,7 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
             rd = RDCOST(full_lambda, rate_sum + rmode, dist_sum);
         } else {
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
-            if (ctx->hbd_md) {
+            if (SVT_EFFECTIVE_HBD_MD(ctx->hbd_md)) {
                 rd = svt_aom_highbd_sse((uint8_t*)src_buf_hbd, src_pic->y_stride, ii_pred_buf, bwidth, bwidth, bheight);
             } else
 #endif
@@ -478,14 +479,15 @@ static void inter_intra_search(PictureControlSet* pcs, ModeDecisionContext* ctx,
     const uint8_t ii_wedge_mode            = ctx->shape == PART_N ? ctx->inter_intra_comp_ctrls.wedge_mode_sq
                                                                   : ctx->inter_intra_comp_ctrls.wedge_mode_nsq;
     if (ii_wedge_mode) {
-        best_interintra_rd_wedge = pick_interintra_wedge(pcs,
-                                                         ctx,
-                                                         ctx->blk_geom->bsize,
-                                                         ctx->intrapred_buf[best_interintra_mode],
-                                                         tmp_buf,
-                                                         ctx->hbd_md ? (uint8_t*)src_buf_hbd : src_buf,
-                                                         src_pic->y_stride,
-                                                         &cand->block_mi.interintra_wedge_index);
+        best_interintra_rd_wedge = pick_interintra_wedge(
+            pcs,
+            ctx,
+            ctx->blk_geom->bsize,
+            ctx->intrapred_buf[best_interintra_mode],
+            tmp_buf,
+            SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? (uint8_t*)src_buf_hbd : src_buf,
+            src_pic->y_stride,
+            &cand->block_mi.interintra_wedge_index);
     }
 
     // for ii_wedge_mode 1, always inject wedge as a separate candidate; for wedge mode 2 only inject
@@ -2991,7 +2993,8 @@ static void intra_bc_search(PictureControlSet* pcs, ModeDecisionContext* ctx, co
                             BlkStruct* blk_ptr, Mv* dv_cand, uint8_t* num_dv_cand) {
     IntraBcContext  x_st;
     IntraBcContext* x           = &x_st;
-    uint32_t        full_lambda = ctx->hbd_md ? ctx->full_lambda_md[EB_10_BIT_MD] : ctx->full_lambda_md[EB_8_BIT_MD];
+    uint32_t        full_lambda = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_lambda_md[EB_10_BIT_MD]
+                                                                    : ctx->full_lambda_md[EB_8_BIT_MD];
 
     x->approx_inter_rate = ctx->approx_inter_rate;
     x->xd                = blk_ptr->av1xd;
@@ -3898,8 +3901,9 @@ uint32_t svt_aom_product_full_mode_decision(PictureControlSet* pcs, ModeDecision
     blk_ptr->total_rate                  = cand_bf->total_rate;
     if (!(ctx->pd_pass == PD_PASS_1 && ctx->fixed_partition)) {
         // When lambda tuning is on, lambda of each block is set separately, however at interdepth decision the sb lambda is used
-        uint32_t full_lambda = ctx->hbd_md ? ctx->full_sb_lambda_md[EB_10_BIT_MD] : ctx->full_sb_lambda_md[EB_8_BIT_MD];
-        ctx->blk_ptr->cost   = RDCOST(full_lambda, cand_bf->total_rate, cand_bf->full_dist);
+        uint32_t full_lambda    = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? ctx->full_sb_lambda_md[EB_10_BIT_MD]
+                                                                    : ctx->full_sb_lambda_md[EB_8_BIT_MD];
+        ctx->blk_ptr->cost      = RDCOST(full_lambda, cand_bf->total_rate, cand_bf->full_dist);
         ctx->blk_ptr->full_dist = cand_bf->full_dist;
     }
 

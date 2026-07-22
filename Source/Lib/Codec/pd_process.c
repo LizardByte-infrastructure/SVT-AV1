@@ -3768,7 +3768,7 @@ static EbErrorType derive_tf_window_params(SequenceControlSet* scs, EncodeContex
     // allocate 16 bit buffer
 #if CONFIG_ENABLE_HIGH_BIT_DEPTH
     uint32_t encoder_bit_depth = centre_pcs->scs->static_config.encoder_bit_depth;
-    bool     is_highbd         = (encoder_bit_depth == 8) ? (uint8_t)false : (uint8_t)true;
+    bool     is_highbd         = (SVT_EFFECTIVE_BIT_DEPTH(encoder_bit_depth) == 8) ? (uint8_t)false : (uint8_t)true;
     if (is_highbd) {
         EB_MALLOC_ARRAY(centre_pcs->altref_buffer_highbd[PLANE_Y], central_picture_ptr->luma_size);
         if (pcs->tf_ctrls.chroma_lvl) {
