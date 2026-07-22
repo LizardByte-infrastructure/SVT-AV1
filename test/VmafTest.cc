@@ -638,6 +638,14 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(kVmafSizes),
         ::testing::Values(&svt_vmaf_compute_gradient_coherence_neon)));
+
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, VmafGradientCoherenceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(kVmafSizes),
+        ::testing::Values(&svt_vmaf_compute_gradient_coherence_neon_dotprod)));
+#endif  // HAVE_NEON_DOTPROD
 #endif  // ARCH_AARCH64
 
 #endif  // OPT_TUNE_VMAF
