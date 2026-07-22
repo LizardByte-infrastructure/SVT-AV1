@@ -6519,6 +6519,10 @@ sb_intra_count: Number of TPL blocks in the SB where the best_mode was an intra 
 */
 static bool get_sb_tpl_intra_stats(PictureControlSet* pcs, ModeDecisionContext* ctx, int* sb_ang_intra_count,
                                    PredictionMode* sb_max_intra, int* sb_intra_count) {
+#if !CONFIG_ENABLE_TPL
+    (void)pcs, (void)ctx, (void)sb_ang_intra_count, (void)sb_max_intra, (void)sb_intra_count;
+    return false; // TPL disabled: tpl_ctrls.enable is always 0, this is never reached at runtime
+#endif
     PictureParentControlSet* ppcs = pcs->ppcs;
 
     // Check that TPL data is available and that INTRA was tested in TPL.

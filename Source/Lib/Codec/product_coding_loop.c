@@ -2882,6 +2882,10 @@ sb_max_rf_idx: The maximum rf_idx selected by any TPL block in the SB
 
 static bool get_sb_tpl_inter_stats(PictureControlSet* pcs, ModeDecisionContext* ctx, uint8_t* sb_inter_selection,
                                    uint8_t* sb_max_list0_ref_idx, uint8_t* sb_max_list1_ref_idx) {
+#if !CONFIG_ENABLE_TPL
+    (void)pcs, (void)ctx, (void)sb_inter_selection, (void)sb_max_list0_ref_idx, (void)sb_max_list1_ref_idx;
+    return false; // TPL disabled: tpl_ctrls.enable is always 0, this is never reached at runtime
+#endif
     PictureParentControlSet* ppcs = pcs->ppcs;
 
     // Check that TPL data is available and that INTRA was tested in TPL.
