@@ -1513,9 +1513,10 @@ void svt_vmaf_vpass_row_neon(const int16_t* r0, const int16_t* r1, const int16_t
         uint16x8_t a2 = vreinterpretq_u16_s16(vld1q_s16(r2 + j));
         uint16x8_t a3 = vreinterpretq_u16_s16(vld1q_s16(r3 + j));
         uint16x8_t a4 = vreinterpretq_u16_s16(vld1q_s16(r4 + j));
-        uint16x8_t v  = vaddq_u16(a0, a4);
-        v             = vaddq_u16(v, vmulq_n_u16(vaddq_u16(a1, a3), 4));
-        v             = vaddq_u16(v, vmulq_n_u16(a2, 6));
+
+        uint16x8_t v = vaddq_u16(a0, a4);
+        v            = vmlaq_n_u16(v, vaddq_u16(a1, a3), 4);
+        v            = vmlaq_n_u16(v, a2, 6);
         vst1_u8(blur_row + x, vqrshrn_n_u16(v, 8));
     }
 }
