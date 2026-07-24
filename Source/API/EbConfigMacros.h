@@ -106,6 +106,9 @@
 #ifndef CONFIG_ENABLE_DLF_SEARCH
 #define CONFIG_ENABLE_DLF_SEARCH            0
 #endif
+#ifndef CONFIG_RTC_SB64
+#define CONFIG_RTC_SB64                     1
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -229,6 +232,13 @@
 
 #ifndef CONFIG_ENABLE_DLF_SEARCH
 #define CONFIG_ENABLE_DLF_SEARCH          1
+#endif
+
+// RTC forces super_block_size = 64 (enc_handle.c), so 128-wide blocks never occur and the 128-wide
+// variance / sub-pel variance / SAD kernels are never dispatched. When set, their RTCD registration
+// is dropped and LTO strips them. Bit-exact at SB=64.
+#ifndef CONFIG_RTC_SB64
+#define CONFIG_RTC_SB64                   0
 #endif
 
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every
