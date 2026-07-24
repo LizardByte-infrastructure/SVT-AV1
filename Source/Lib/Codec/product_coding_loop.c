@@ -9322,8 +9322,12 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
         // Set MD stage to 0 to avoid using TX shortcuts in chroma transform path that are
         // meant to be based on luma TX data, which is not available
         ctx->md_stage = MD_STAGE_0;
-        search_best_independent_uv_mode(
-            pcs, input_pic, loc.input_cb_origin_in_index, loc.input_cb_origin_in_index, 0, ctx);
+        // RTC chroma never uses CHROMA_MODE_0 with ind_uv_last_mds==0, so this pre-MDS0 independent
+        // chroma search is unreachable; the RTC_BUILD const guard lets the optimizer DCE it.
+        if (!RTC_BUILD) {
+            search_best_independent_uv_mode(
+                pcs, input_pic, loc.input_cb_origin_in_index, loc.input_cb_origin_in_index, 0, ctx);
+        }
     }
     if (pcs->slice_type != I_SLICE) {
         ctx->is_intra_bordered  = ctx->cand_reduction_ctrls.use_neighbouring_mode_ctrls.enabled ? is_intra_bordered(ctx)
@@ -9545,8 +9549,12 @@ static void md_encode_block(PictureControlSet* pcs, ModeDecisionContext* ctx, co
                                      ctx,
                                      ctx->md_stage_3_total_count);
         } else {
-            search_best_independent_uv_mode(
-                pcs, input_pic, loc.input_cb_origin_in_index, loc.input_cb_origin_in_index, 0, ctx);
+            // ind_uv_last_mds==1 (search before the last MD stage) is never set in RTC; the RTC_BUILD
+            // const guard lets the optimizer DCE search_best_independent_uv_mode.
+            if (!RTC_BUILD) {
+                search_best_independent_uv_mode(
+                    pcs, input_pic, loc.input_cb_origin_in_index, loc.input_cb_origin_in_index, 0, ctx);
+            }
         }
     }
 
@@ -10773,8 +10781,8 @@ static bool test_split_partition(SequenceControlSet* scs, PictureControlSet* pcs
 
 static bool test_depth(SequenceControlSet* scs, PictureControlSet* pcs, ModeDecisionContext* ctx, MdScan* mds,
                        PC_TREE* pc_tree, const int mi_row, const int mi_col) {
-    const bool           allintra         = scs->allintra;
-    const bool           rtc_tune         = scs->static_config.rtc;
+    const bool           allintra         = SVT_ALLINTRA(scs);
+    const bool           rtc_tune         = SVT_RTC_TUNE(scs);
     EbPictureBufferDesc* input_pic        = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) ? pcs->input_frame16bit
                                                                               : pcs->ppcs->enhanced_pic;
     const uint32_t       base_blk_idx_mds = mds->mds_idx;

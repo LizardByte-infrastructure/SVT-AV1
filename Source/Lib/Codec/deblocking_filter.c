@@ -1141,7 +1141,8 @@ EbErrorType svt_av1_pick_filter_level(EbPictureBufferDesc* srcBuffer, // source 
         lf->filter_level[1] = filter_level[1];
         lf->filter_level_u  = filter_level[2];
         lf->filter_level_v  = filter_level[3];
-    } else {
+    } else if (CONFIG_ENABLE_DLF_SEARCH) {
+        // RTC uses LPF_PICK_FROM_Q; the full/sub-image DLF search is unreachable and DCE'd.
         uint16_t padding = scs->super_block_size + 32;
         if (scs->static_config.superres_mode > SUPERRES_NONE || scs->static_config.resize_mode > RESIZE_NONE) {
             padding += scs->super_block_size;

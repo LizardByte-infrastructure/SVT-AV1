@@ -103,6 +103,9 @@
 #ifndef CONFIG_ENABLE_MD_CDF_UPDATE
 #define CONFIG_ENABLE_MD_CDF_UPDATE         0
 #endif
+#ifndef CONFIG_ENABLE_DLF_SEARCH
+#define CONFIG_ENABLE_DLF_SEARCH            0
+#endif
 #endif // MINIMAL_BUILD
 
 #endif
@@ -224,6 +227,10 @@
 #define CONFIG_ENABLE_MD_CDF_UPDATE        1
 #endif
 
+#ifndef CONFIG_ENABLE_DLF_SEARCH
+#define CONFIG_ENABLE_DLF_SEARCH          1
+#endif
+
 // Fast (non-bit-exact) all-int16 forward transforms for the LBD path: every
 // two-product cospi butterfly uses per-product vqrdmulhq_s16 instead of the
 // widening multiply. ~3x fewer instructions; tiny rounding error vs the
@@ -262,5 +269,10 @@
 #endif
 
 // clang-format on
+
+// RTC-minimal is always rtc-tuned and never all-intra; fold these to compile-time constants so the
+// _default/_allintra signal-derivation variants dead-code-eliminate.
+#define SVT_RTC_TUNE(scs) (RTC_BUILD ? true : (scs)->static_config.rtc)
+#define SVT_ALLINTRA(scs) (RTC_BUILD ? false : (scs)->allintra)
 
 #endif // EbConfigMacros_h

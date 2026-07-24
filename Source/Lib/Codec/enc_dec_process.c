@@ -3026,14 +3026,14 @@ EbErrorType svt_aom_mode_decision_kernel_iter(void* context) {
                     }
                     exaustive_light_pd1_features(md_ctx, ppcs, md_ctx->lpd1_ctrls.pd1_level > REGULAR_PD1, 0);
                     if (md_ctx->lpd1_ctrls.pd1_level > REGULAR_PD1) {
-                        if (scs->static_config.rtc) {
+                        if (SVT_RTC_TUNE(scs)) {
                             svt_aom_sig_deriv_enc_dec_light_pd1_rtc(pcs, ed_ctx->md_ctx);
                         } else {
                             svt_aom_sig_deriv_enc_dec_light_pd1_default(pcs, ed_ctx->md_ctx);
                         }
-                    } else if (scs->allintra) {
+                    } else if (SVT_ALLINTRA(scs)) {
                         svt_aom_sig_deriv_enc_dec_allintra(pcs, ed_ctx->md_ctx);
-                    } else if (scs->static_config.rtc) {
+                    } else if (SVT_RTC_TUNE(scs)) {
                         svt_aom_sig_deriv_enc_dec_rtc(pcs, ed_ctx->md_ctx);
                     } else {
                         svt_aom_sig_deriv_enc_dec_default(pcs, ed_ctx->md_ctx);

@@ -925,9 +925,9 @@ EbErrorType svt_aom_mode_decision_configuration_kernel_iter(void* context) {
 
     FrameHeader* frm_hdr = &pcs->ppcs->frm_hdr;
     // Mode Decision Configuration Kernel Signal(s) derivation
-    if (scs->allintra) {
+    if (SVT_ALLINTRA(scs)) {
         svt_aom_sig_deriv_mode_decision_config_allintra(scs, pcs);
-    } else if (scs->static_config.rtc) {
+    } else if (SVT_RTC_TUNE(scs)) {
         svt_aom_sig_deriv_mode_decision_config_rtc(scs, pcs);
     } else {
         svt_aom_sig_deriv_mode_decision_config_default(scs, pcs);
