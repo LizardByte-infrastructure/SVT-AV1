@@ -377,7 +377,7 @@ static int add_tpl_ref_mv(const Av1Common* cm, PictureControlSet* pcs, const Mac
     if (two_symetric_refs) {
         if (ref_frame == LAST_FRAME) {
             get_mv_projection(&this_refmv, prev_frame_mvs->mfmv0, cur_offset_0, prev_frame_mvs->ref_frame_offset);
-            lower_mv_precision(&this_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv, 0);
+            lower_mv_precision(&this_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv);
             //store for future use
             (*mv_ref0) = this_refmv;
         } else {
@@ -390,7 +390,7 @@ static int add_tpl_ref_mv(const Av1Common* cm, PictureControlSet* pcs, const Mac
         }
     } else {
         get_mv_projection(&this_refmv, prev_frame_mvs->mfmv0, cur_offset_0, prev_frame_mvs->ref_frame_offset);
-        lower_mv_precision(&this_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv, 0);
+        lower_mv_precision(&this_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv);
     }
 
     //single ref case could be detected by ref_frame
@@ -419,7 +419,7 @@ static int add_tpl_ref_mv(const Av1Common* cm, PictureControlSet* pcs, const Mac
             comp_refmv.x = -mv_ref0->x;
         } else {
             get_mv_projection(&comp_refmv, prev_frame_mvs->mfmv0, cur_offset_1, prev_frame_mvs->ref_frame_offset);
-            lower_mv_precision(&comp_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv, 0);
+            lower_mv_precision(&comp_refmv, pcs->ppcs->frm_hdr.allow_high_precision_mv);
         }
 
         if (blk_row == 0 && blk_col == 0) {
@@ -2027,14 +2027,12 @@ Mv svt_av1_get_ref_mv_from_stack(int ref_idx, const MvReferenceFrame* ref_frame,
     return ref_mv;
 }
 
-void svt_av1_find_best_ref_mvs_from_stack(int allow_hp,
-                                          //const MB_MODE_INFO_EXT *mbmi_ext,
-                                          CandidateMv ref_mv_stack[][MAX_REF_MV_STACK_SIZE], MacroBlockD* xd,
-                                          MvReferenceFrame ref_frame, Mv* nearest_mv, Mv* near_mv, int is_integer) {
+void svt_av1_find_best_ref_mvs_from_stack(CandidateMv ref_mv_stack[][MAX_REF_MV_STACK_SIZE], MacroBlockD* xd,
+                                          MvReferenceFrame ref_frame, Mv* nearest_mv, Mv* near_mv) {
     const int        ref_idx       = 0;
     MvReferenceFrame ref_frames[2] = {ref_frame, NONE_FRAME};
     *nearest_mv = svt_av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, ref_mv_stack /*mbmi_ext*/, xd);
-    lower_mv_precision(nearest_mv, allow_hp, is_integer);
+    lower_mv_precision(nearest_mv, 0);
     *near_mv = svt_av1_get_ref_mv_from_stack(ref_idx, ref_frames, 1, ref_mv_stack /*mbmi_ext*/, xd);
-    lower_mv_precision(near_mv, allow_hp, is_integer);
+    lower_mv_precision(near_mv, 0);
 }

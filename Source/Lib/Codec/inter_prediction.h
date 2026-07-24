@@ -201,44 +201,17 @@ static int div_mult[32] = {0,    16384, 8192, 5461, 4096, 3276, 2730, 2340, 2048
                            744,  712,   682,  655,  630,  606,  585,  564,  546,  528};
 
 static INLINE void integer_mv_precision(Mv* mv) {
-    int mod = (mv->y % 8);
-    if (mod != 0) {
-        mv->y -= mod;
-        if (abs(mod) > 4) {
-            if (mod > 0) {
-                mv->y += 8;
-            } else {
-                mv->y -= 8;
-            }
-        }
-    }
-
-    mod = (mv->x % 8);
-    if (mod != 0) {
-        mv->x -= mod;
-        if (abs(mod) > 4) {
-            if (mod > 0) {
-                mv->x += 8;
-            } else {
-                mv->x -= 8;
-            }
-        }
-    }
+    // round to nearest multiple of 8, ties (|rem|==4) toward zero, matching original
+    mv->x = (mv->x + 3 + (mv->x < 0)) & ~7;
+    mv->y = (mv->y + 3 + (mv->y < 0)) & ~7;
 }
 
-static INLINE void lower_mv_precision(Mv* mv, int allow_hp, int is_integer) {
-    if (is_integer) {
-        integer_mv_precision(mv);
-    } else {
-        if (!allow_hp) {
-            if (mv->y & 1) {
-                mv->y += (mv->y > 0 ? -1 : 1);
-            }
-            if (mv->x & 1) {
-                mv->x += (mv->x > 0 ? -1 : 1);
-            }
-        }
+static INLINE void lower_mv_precision(Mv* mv, int allow_hp) {
+    if (allow_hp) {
+        return;
     }
+    mv->x = (mv->x + (mv->x < 0)) & ~1;
+    mv->y = (mv->y + (mv->y < 0)) & ~1;
 }
 
 static INLINE void get_mv_projection(Mv* output, Mv ref, int num, int den) {

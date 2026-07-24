@@ -3033,7 +3033,7 @@ static void intra_bc_search(PictureControlSet* pcs, ModeDecisionContext* ctx, co
     }
 
     Mv nearestmv, nearmv;
-    svt_av1_find_best_ref_mvs_from_stack(0, ctx->ref_mv_stack /*mbmi_ext*/, xd, ref_frame, &nearestmv, &nearmv, 0);
+    svt_av1_find_best_ref_mvs_from_stack(ctx->ref_mv_stack /*mbmi_ext*/, xd, ref_frame, &nearestmv, &nearmv);
     if (nearestmv.as_int == INVALID_MV) {
         nearestmv.as_int = 0;
     }
