@@ -85,7 +85,7 @@ static INLINE __m256i yy_loadu2_128(const void* hi, const void* lo) {
 
 // Work around an MSVC 19.50 bug with inlining yy_unpacklo_epi128(), by defining
 // it as a macro. This bug was fixed in MSVC 19.51.
-#define yy_unpacklo_epi128(in0, in1) _mm256_inserti128_si256(in0, _mm256_castsi256_si128(in1), 1)
+#define yy_unpacklo_epi128(in0, in1) _mm256_inserti128_si256((in0), _mm256_castsi256_si128(in1), 1)
 
 static INLINE __m256i yy_unpackhi_epi128(const __m256i in0, const __m256i in1) {
     return _mm256_permute2x128_si256(in0, in1, 0x31);
