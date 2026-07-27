@@ -3540,6 +3540,7 @@ EbErrorType svt_aom_inter_prediction(SequenceControlSet* scs, PictureControlSet*
     return EB_ErrorNone;
 }
 
+#if CONFIG_ENABLE_INTER_COMPOUND
 bool svt_aom_calc_pred_masked_compound(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidate* cand) {
     SequenceControlSet*  scs     = pcs->scs;
     uint8_t              hbd_md  = SVT_EFFECTIVE_HBD_MD(ctx->hbd_md) == EB_DUAL_BIT_MD ? EB_8_BIT_MD
@@ -3710,6 +3711,7 @@ bool svt_aom_calc_pred_masked_compound(PictureControlSet* pcs, ModeDecisionConte
 
     return exit_compound_prep;
 }
+#endif // CONFIG_ENABLE_INTER_COMPOUND
 
 void svt_aom_search_compound_diff_wedge(PictureControlSet* pcs, ModeDecisionContext* ctx, ModeDecisionCandidate* cand) {
     pick_interinter_mask(pcs,
