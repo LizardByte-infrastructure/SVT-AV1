@@ -1917,7 +1917,9 @@ static void av1_generate_rps_info(PictureParentControlSet* pcs, EncodeContext* e
     SequenceControlSet* scs                 = pcs->scs;
     const uint8_t       hierarchical_levels = pcs->hierarchical_levels;
     const uint8_t       temporal_layer      = pcs->temporal_layer_index;
-    const uint8_t       more_5L_refs        = pcs->scs->mrp_ctrls.more_5L_refs;
+#if CONFIG_ENABLE_RANDOM_ACCESS
+    const uint8_t more_5L_refs = pcs->scs->mrp_ctrls.more_5L_refs;
+#endif
 
     if (scs->allintra) {
         pcs->is_ref = false;
@@ -2237,7 +2239,9 @@ static void av1_generate_rps_info(PictureParentControlSet* pcs, EncodeContext* e
         }
         prune_refs(av1_rps, pcs->ref_list0_count, pcs->ref_list1_count);
         set_frame_display_params(pcs, ctx, mg_idx);
-    } else if (hierarchical_levels == 0) {
+    }
+#if CONFIG_ENABLE_RANDOM_ACCESS
+    else if (hierarchical_levels == 0) {
         const uint8_t base0_idx = ctx->lay0_toggle; // the newest L0 picture in the DPB
         const uint8_t base1_idx = CIRC_DEC(base0_idx, 0, 7); // the 2nd-newest L0 picture in the DPB
         const uint8_t base2_idx = CIRC_DEC(base1_idx, 0, 7); // the 3rd-newest L0 picture in the DPB
@@ -3482,7 +3486,9 @@ static void av1_generate_rps_info(PictureParentControlSet* pcs, EncodeContext* e
                 }
             }
         }
-    } else {
+    }
+#endif // CONFIG_ENABLE_RANDOM_ACCESS
+    else {
         SVT_ERROR("Unsupported MG structure!");
         exit(0);
     }
