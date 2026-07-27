@@ -2548,9 +2548,15 @@ static int md_subpel_search(SUBPEL_STAGE       search_stage, //ME or PME
     int          not_used = 0;
     unsigned int pred_sse = 0; // not used
     // Assign which subpel search method to use
+#if CONFIG_ENABLE_FULL_SUBPEL
     fractional_mv_step_fp* subpel_search_method = md_subpel_ctrls.subpel_search_method == SUBPEL_TREE
         ? svt_av1_find_best_sub_pixel_tree
         : svt_av1_find_best_sub_pixel_tree_pruned;
+#else
+    // RTC (M9+) never selects SUBPEL_TREE, so only the pruned search is reachable. Dropping the reference to
+    // svt_av1_find_best_sub_pixel_tree lets LTO DCE it + the upsampled predictor + convolve8.
+    fractional_mv_step_fp* subpel_search_method = svt_av1_find_best_sub_pixel_tree_pruned;
+#endif
     ms_params->pred_variance_th                 = md_subpel_ctrls.pred_variance_th;
     ms_params->abs_th_mult                      = md_subpel_ctrls.abs_th_mult;
     ms_params->round_dev_th                     = md_subpel_ctrls.round_dev_th;

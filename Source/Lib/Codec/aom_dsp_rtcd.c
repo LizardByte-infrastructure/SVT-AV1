@@ -739,7 +739,11 @@ void svt_aom_setup_rtcd_internal(EbCpuFlags flags) {
     SET_NEON(svt_av1_txb_init_levels, svt_av1_txb_init_levels_c, svt_av1_txb_init_levels_neon);
     SET_NEON(svt_aom_satd, svt_aom_satd_c, svt_aom_satd_neon);
     SET_NEON_SVE(svt_av1_block_error, svt_av1_block_error_c, svt_av1_block_error_neon, svt_av1_block_error_sve);
+    // Upsampled predictor is reached only via the full subpel tree or OBMC; when both are off (RTC) it is left
+    // unregistered (never called) so LTO drops it and the convolve8 kernels it calls.
+#if CONFIG_ENABLE_FULL_SUBPEL || CONFIG_ENABLE_OBMC
     SET_NEON(svt_aom_upsampled_pred, svt_aom_upsampled_pred_c, svt_aom_upsampled_pred_neon);
+#endif
 
 #if CONFIG_ENABLE_OBMC
     SET_NEON(svt_aom_obmc_sad4x4, svt_aom_obmc_sad4x4_c, svt_aom_obmc_sad4x4_neon);
