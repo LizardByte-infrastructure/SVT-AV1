@@ -380,6 +380,9 @@ static INLINE bool is_motion_variation_allowed_bsize(const BlockSize bsize) {
 }
 
 static INLINE int is_global_mv_block(const PredictionMode mode, const BlockSize bsize, TransformationType type) {
+    if (!CONFIG_ENABLE_GLOBAL_MOTION) {
+        return 0; // global motion off in RTC -> const-folds, cascades DCE
+    }
     return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
         is_motion_variation_allowed_bsize(bsize);
 }

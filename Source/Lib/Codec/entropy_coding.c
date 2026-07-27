@@ -1159,6 +1159,9 @@ static void write_is_inter(const EcBlkStruct* blk_ptr, FRAME_CONTEXT* frame_cont
 MotionMode svt_aom_motion_mode_allowed(const PictureControlSet* pcs, uint16_t num_proj_ref,
                                        uint32_t overlappable_neighbors, const BlockSize bsize, MvReferenceFrame rf0,
                                        MvReferenceFrame rf1, PredictionMode mode) {
+    if (!CONFIG_ENABLE_OBMC && !CONFIG_ENABLE_WARP) {
+        return SIMPLE_TRANSLATION; // OBMC/warp off -> const-folds, cascades DCE
+    }
     FrameHeader* frm_hdr = &pcs->ppcs->frm_hdr;
     if (!frm_hdr->is_motion_mode_switchable) {
         return SIMPLE_TRANSLATION;
@@ -1571,6 +1574,9 @@ int svt_aom_get_pred_context_switchable_interp(MvReferenceFrame rf0, MvReference
 
 int svt_aom_is_nontrans_global_motion(const BlockModeInfo* block_mi, const BlockSize bsize,
                                       PictureParentControlSet* pcs) {
+    if (!CONFIG_ENABLE_GLOBAL_MOTION) {
+        return 0; // global motion off -> all wmtype TRANSLATION
+    }
     // First check if all modes are GLOBALMV
     if (block_mi->mode != GLOBALMV && block_mi->mode != GLOBAL_GLOBALMV) {
         return 0;
@@ -4210,8 +4216,9 @@ static void ec_update_neighbors(PictureControlSet* pcs, EntropyCodingContext* ec
 }
 
 int svt_aom_allow_palette(int allow_screen_content_tools, BlockSize bsize) {
-    return allow_screen_content_tools && block_size_wide[bsize] <= 64 && block_size_high[bsize] <= 64 &&
-        bsize >= BLOCK_8X8;
+    // Palette is off in RTC (CONFIG_ENABLE_PALETTE=0) -> const-folds to 0, DCE-ing the palette entropy write.
+    return CONFIG_ENABLE_PALETTE && allow_screen_content_tools && block_size_wide[bsize] <= 64 &&
+        block_size_high[bsize] <= 64 && bsize >= BLOCK_8X8;
 }
 
 int svt_aom_get_palette_bsize_ctx(BlockSize bsize) {

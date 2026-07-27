@@ -1596,6 +1596,9 @@ static INLINE bool is_inter_mode(PredictionMode mode) {
 }
 
 static INLINE int32_t is_inter_compound_mode(PredictionMode mode) {
+    if (!CONFIG_ENABLE_INTER_COMPOUND) {
+        return 0; // single-ref: no compound modes -> const-folds, cascades DCE
+    }
     return mode >= NEAREST_NEARESTMV && mode <= NEW_NEWMV;
 }
 

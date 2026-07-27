@@ -104,6 +104,9 @@ typedef struct MbModeInfo {
 } MbModeInfo;
 
 static AOM_INLINE int has_second_ref(const BlockModeInfo* block_mi) {
+    if (!CONFIG_ENABLE_INTER_COMPOUND) {
+        return 0; // compound off -> const-folds, cascades DCE
+    }
     return block_mi->ref_frame[1] > INTRA_FRAME;
 }
 

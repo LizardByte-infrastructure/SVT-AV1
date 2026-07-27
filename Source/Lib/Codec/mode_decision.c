@@ -106,10 +106,16 @@ int svt_is_interintra_allowed(uint8_t enable_inter_intra, BlockSize bsize, Predi
 }
 
 int svt_aom_filter_intra_allowed_bsize(BlockSize bs) {
+    if (!CONFIG_ENABLE_FILTER_INTRA) {
+        return 0; // filter_intra off -> const-folds, cascades DCE
+    }
     return block_size_wide[bs] <= 32 && block_size_high[bs] <= 32;
 }
 
 int svt_aom_filter_intra_allowed(uint8_t enable_filter_intra, BlockSize bsize, uint8_t palette_size, uint32_t mode) {
+    if (!CONFIG_ENABLE_FILTER_INTRA) {
+        return 0; // filter_intra off
+    }
     return enable_filter_intra && mode == DC_PRED && palette_size == 0 && svt_aom_filter_intra_allowed_bsize(bsize);
 }
 
@@ -221,6 +227,9 @@ MotionMode svt_aom_obmc_motion_mode_allowed(
     const PictureControlSet* pcs, ModeDecisionContext* ctx, const BlockSize bsize,
     uint8_t          situation, // 0: candidate(s) preparation, 1: data preparation, 2: simple translation face-off
     MvReferenceFrame rf0, MvReferenceFrame rf1, PredictionMode mode) {
+    if (!CONFIG_ENABLE_OBMC && !CONFIG_ENABLE_WARP) {
+        return SIMPLE_TRANSLATION; // OBMC/warp off -> const-folds, cascades DCE
+    }
     if (ctx->obmc_ctrls.trans_face_off && !situation) {
         return SIMPLE_TRANSLATION;
     }
