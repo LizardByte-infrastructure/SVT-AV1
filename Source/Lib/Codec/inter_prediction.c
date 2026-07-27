@@ -29,6 +29,9 @@ void svt_aom_pack_block(uint8_t* in8_bit_buffer, uint32_t in8_stride, uint8_t* i
         in8_bit_buffer, in8_stride, inn_bit_buffer, inn_stride, out16_bit_buffer, out_stride, width, height);
 }
 
+const int             div_mult[32] = {0,    16384, 8192, 5461, 4096, 3276, 2730, 2340, 2048, 1820, 1638,
+                                      1489, 1365,  1260, 1170, 1092, 1024, 963,  910,  862,  819,  780,
+                                      744,  712,   682,  655,  630,  606,  585,  564,  546,  528};
 static WedgeMasksType wedge_masks[BLOCK_SIZES_ALL][2];
 
 int svt_aom_is_masked_compound_type(COMPOUND_TYPE type) {

@@ -196,9 +196,7 @@ int svt_aom_is_masked_compound_type(COMPOUND_TYPE type);
 
 // Although we assign 32 bit integers, all the values are strictly under 14
 // bits.
-static int div_mult[32] = {0,    16384, 8192, 5461, 4096, 3276, 2730, 2340, 2048, 1820, 1638,
-                           1489, 1365,  1260, 1170, 1092, 1024, 963,  910,  862,  819,  780,
-                           744,  712,   682,  655,  630,  606,  585,  564,  546,  528};
+extern const int div_mult[32];
 
 static INLINE void integer_mv_precision(Mv* mv) {
     // round to nearest multiple of 8, ties (|rem|==4) toward zero, matching original
@@ -457,7 +455,7 @@ static INLINE int8_t av1_ref_frame_type(const MvReferenceFrame* const rf) {
     return rf[0];
 }
 
-static MvReferenceFrame ref_frame_map[TOTAL_COMP_REFS][2] = {
+static const MvReferenceFrame ref_frame_map[TOTAL_COMP_REFS][2] = {
     {LAST_FRAME, BWDREF_FRAME},
     {LAST2_FRAME, BWDREF_FRAME},
     {LAST3_FRAME, BWDREF_FRAME},
@@ -501,13 +499,13 @@ static INLINE void av1_set_ref_frame(MvReferenceFrame* rf, int8_t ref_frame_type
       | List1            BWD         ALT2         ALT                  |
       |----------------------------------------------------------------|
 */
-static uint8_t ref_type_to_list_idx[REFS_PER_FRAME + 1] = {0, 0, 0, 0, 0, 1, 1, 1};
+static const uint8_t ref_type_to_list_idx[REFS_PER_FRAME + 1] = {0, 0, 0, 0, 0, 1, 1, 1};
 
 static INLINE uint8_t get_list_idx(uint8_t ref_type) {
     return ref_type_to_list_idx[ref_type];
 }
 
-static uint8_t ref_type_to_ref_idx[REFS_PER_FRAME + 1] = {0, 0, 1, 2, 3, 0, 1, 2};
+static const uint8_t ref_type_to_ref_idx[REFS_PER_FRAME + 1] = {0, 0, 1, 2, 3, 0, 1, 2};
 
 static INLINE uint8_t get_ref_frame_idx(uint8_t ref_type) {
     return ref_type_to_ref_idx[ref_type];
