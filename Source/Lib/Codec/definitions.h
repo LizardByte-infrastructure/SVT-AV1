@@ -22,6 +22,9 @@
 #include "EbSvtAv1Enc.h"
 #include <stdbool.h>
 
+#define SVT_STRINGIFY_(x) #x
+#define SVT_STRINGIFY(x) SVT_STRINGIFY_(x)
+
 #ifdef _WIN32
 #define inline __inline
 #elif __GNUC__
