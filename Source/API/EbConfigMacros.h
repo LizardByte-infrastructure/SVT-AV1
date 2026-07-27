@@ -79,6 +79,9 @@
 #ifndef CONFIG_ENABLE_PALETTE
 #define CONFIG_ENABLE_PALETTE               0
 #endif
+#ifndef CONFIG_ENABLE_INTRA_BC
+#define CONFIG_ENABLE_INTRA_BC              0
+#endif
 #ifndef CONFIG_ENABLE_LOSSLESS
 #define CONFIG_ENABLE_LOSSLESS              0
 #endif
@@ -199,6 +202,9 @@
 
 #ifndef CONFIG_ENABLE_PALETTE
 #define CONFIG_ENABLE_PALETTE               1
+#endif
+#ifndef CONFIG_ENABLE_INTRA_BC
+#define CONFIG_ENABLE_INTRA_BC              1
 #endif
 
 #ifndef CONFIG_ENABLE_LOSSLESS
