@@ -3494,7 +3494,7 @@ EbErrorType svt_aom_inter_prediction(SequenceControlSet* scs, PictureControlSet*
         }
     }
 
-    if (block_mi->is_interintra_used) {
+    if (CONFIG_ENABLE_INTER_INTRA && block_mi->is_interintra_used) { // RTC: inter-intra off -> const-folds, DCE
         inter_intra_prediction(pcs,
                                ctx,
                                use_precomputed_ii,

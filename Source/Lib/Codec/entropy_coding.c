@@ -4921,7 +4921,8 @@ static void write_inter_segment_id(PictureControlSet* pcs, FRAME_CONTEXT* frame_
 }
 
 int svt_aom_is_interintra_allowed(const MbModeInfo* mbmi) {
-    return svt_aom_is_interintra_allowed_bsize(mbmi->bsize) &&
+    // Inter-intra is off in RTC (CONFIG_ENABLE_INTER_INTRA=0) -> const-folds to 0, DCE-ing all callers.
+    return CONFIG_ENABLE_INTER_INTRA && svt_aom_is_interintra_allowed_bsize(mbmi->bsize) &&
         svt_aom_is_interintra_allowed_mode(mbmi->block_mi.mode) &&
         svt_aom_is_interintra_allowed_ref(mbmi->block_mi.ref_frame);
 }
