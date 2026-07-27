@@ -568,6 +568,7 @@ is the main function to compute intra prediction for a PU
 */
 EbErrorType svt_av1_intra_prediction(uint8_t hbd_md, ModeDecisionContext* ctx, PictureControlSet* pcs,
                                      ModeDecisionCandidateBuffer* cand_bf) {
+    SVT_FOLD_HBD_MD(hbd_md);
     EbErrorType    return_error   = EB_ErrorNone;
     const TxSize   tx_size        = tx_depth_to_tx_size[cand_bf->cand->block_mi.tx_depth][ctx->blk_geom->bsize];
     const TxSize   tx_size_chroma = av1_get_max_uv_txsize(ctx->blk_geom->bsize, 1, 1);

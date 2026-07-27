@@ -2788,6 +2788,7 @@ static void av1_inter_prediction_light_pd1(SequenceControlSet* scs, ModeDecision
                                            EbPictureBufferDesc* ref_pic_0, EbPictureBufferDesc* ref_pic_1,
                                            EbPictureBufferDesc* pred_pic, uint32_t component_mask, uint8_t hbd_md,
                                            ScaleFactors* sf0, ScaleFactors* sf1) {
+    SVT_FOLD_HBD_MD(hbd_md);
     const BlockGeom* blk_geom     = ctx->blk_geom;
     const uint16_t   ref_origin_x = ctx->blk_org_x;
     const uint16_t   ref_origin_y = ctx->blk_org_y;
@@ -3216,7 +3217,8 @@ EbErrorType svt_aom_inter_prediction(SequenceControlSet* scs, PictureControlSet*
                                      EbPictureBufferDesc* ref_pic_1, uint16_t ref_origin_x, uint16_t ref_origin_y,
                                      EbPictureBufferDesc* pred_pic, uint16_t dst_origin_x, uint16_t dst_origin_y,
                                      uint32_t component_mask, uint8_t bit_depth, uint8_t is_16bit_pipeline) {
-    const uint8_t is16bit     = bit_depth > EB_EIGHT_BIT || is_16bit_pipeline;
+    const uint8_t is16bit = SVT_EFFECTIVE_BIT_DEPTH(bit_depth) > EB_EIGHT_BIT ||
+        SVT_EFFECTIVE_IS_16BIT_PIPELINE(is_16bit_pipeline);
     const uint8_t is_compound = has_second_ref(block_mi);
 
     // Scratch conv + seg-mask buffers are hoisted to the per-thread MD context to keep
@@ -3813,6 +3815,7 @@ EbErrorType svt_aom_inter_pu_prediction_av1_light_pd1(uint8_t hbd_md, ModeDecisi
 
 EbErrorType svt_aom_inter_pu_prediction_av1(uint8_t hbd_md, ModeDecisionContext* ctx, PictureControlSet* pcs,
                                             ModeDecisionCandidateBuffer* cand_bf) {
+    SVT_FOLD_HBD_MD(hbd_md);
     ModeDecisionCandidate* const cand        = cand_bf->cand;
     const uint8_t                bit_depth   = hbd_md ? pcs->scs->static_config.encoder_bit_depth : EB_EIGHT_BIT;
     const uint8_t                is_compound = is_inter_compound_mode(cand->block_mi.mode);
