@@ -248,9 +248,16 @@ void set_segments_numbers(SequenceControlSet* scs) {
     // Segments will be parallelized within a tile group
     // We can use tile group to control the threads/parallelism in ED stage
     // NOTE:1 col will have better perf for segments for large resolutions
-    //by default, do not use tile prallel. to enable, one can set one tile-group per tile.
-    scs->tile_group_col_count_array = 1;
-    scs->tile_group_row_count_array = 1;
+    if (scs->static_config.pred_structure == LOW_DELAY) {
+        // Low-delay is picture-serial, so tiles are the only intra-frame parallelism:
+        // map one tile-group per tile (RA keeps a single tile-group).
+        scs->tile_group_col_count_array = 1 << scs->static_config.tile_columns;
+        scs->tile_group_row_count_array = 1 << scs->static_config.tile_rows;
+    } else {
+        // by default, do not use tile parallel. to enable, one can set one tile-group per tile.
+        scs->tile_group_col_count_array = 1;
+        scs->tile_group_row_count_array = 1;
+    }
 
     // TPL processed in 64x64 blocks, so check width against 64x64 block size (even if SB is 128x128)
     scs->tpl_segment_row_count_array = (lp == PARALLEL_LEVEL_1 ||
@@ -529,10 +536,8 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
     const uint32_t tot_enc_dec_segs = scs->enc_dec_segment_col_count_array * scs->enc_dec_segment_row_count_array;
     const uint32_t tot_cdef_segs    = scs->cdef_segment_column_count * scs->cdef_segment_row_count;
     const uint32_t tot_rest_segs    = scs->rest_segment_column_count * scs->rest_segment_row_count;
-    const uint32_t tot_tiles        = MIN(9,
-                                   (1 << scs->static_config.tile_columns) *
-                                       (1 << scs->static_config.tile_rows)); //Jing: Too many tiles may drain the fifo
-    const uint32_t max_fifo         = 300;
+    const uint32_t tot_tiles = MIN(64, (1 << scs->static_config.tile_columns) * (1 << scs->static_config.tile_rows));
+    const uint32_t max_fifo  = 300;
 
     // Open loop
     scs->resource_coordination_fifo_init_count = MIN(
@@ -592,13 +597,30 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
     max_mdc_proc = scs->picture_control_set_pool_init_count_child;
     max_md_proc  = scs->picture_control_set_pool_init_count_child *
         get_max_wavefronts(scs->max_input_luma_width, scs->max_input_luma_height, scs->super_block_size);
-    max_ec_proc   = scs->picture_control_set_pool_init_count_child;
+    max_ec_proc = scs->picture_control_set_pool_init_count_child;
+    // Low-delay is picture-serial, so MD/EC parallelize only across tiles. Raise
+    // their ceilings to the tile count and target ld_workers below, which doubles
+    // per --lp level (matching the core-count brackets) so the thread count
+    // scales with --lp instead of being pinned to 1 (EC) or flat.
+    uint32_t ld_workers = 1;
+    if (is_low_delay) {
+        // Each tile has its own segment wavefront, so the MD ceiling is the sum
+        // of per-tile wavefronts (not the single frame-wide one), and EC can run
+        // one worker per tile.
+        uint32_t per_tile_wf = get_max_wavefronts(MAX(scs->max_input_luma_width / scs->tile_group_col_count_array, 1u),
+                                                  MAX(scs->max_input_luma_height / scs->tile_group_row_count_array, 1u),
+                                                  scs->super_block_size);
+
+        max_md_proc = MAX(max_md_proc, tot_tiles * per_tile_wf);
+        max_ec_proc = MAX(max_ec_proc, tot_tiles);
+        ld_workers  = 1u << (lp - 1);
+    }
     max_dlf_proc  = scs->picture_control_set_pool_init_count_child;
     max_cdef_proc = scs->picture_control_set_pool_init_count_child * scs->cdef_segment_column_count *
         scs->cdef_segment_row_count;
     max_rest_proc = scs->picture_control_set_pool_init_count_child * scs->rest_segment_column_count *
         scs->rest_segment_row_count;
-
+#define WORKERS_COUNT(x) (is_low_delay ? ld_workers : (x))
     if (lp <= PARALLEL_LEVEL_1) {
         scs->total_process_init_count += (scs->picture_analysis_process_init_count = 1);
         scs->total_process_init_count += (scs->motion_estimation_process_init_count = 1);
@@ -619,9 +641,11 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
         scs->total_process_init_count += (scs->tpl_disp_process_init_count = clamp(6, 1, max_tpl_proc));
         scs->total_process_init_count += (scs->mode_decision_configuration_process_init_count = clamp(
                                               1, 1, max_mdc_proc));
-        scs->total_process_init_count += (scs->enc_dec_process_init_count = clamp(
-                                              3, scs->picture_control_set_pool_init_count_child, max_md_proc));
-        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(1, 1, max_ec_proc));
+        scs->total_process_init_count +=
+            (scs->enc_dec_process_init_count = clamp(
+                 WORKERS_COUNT(3), scs->picture_control_set_pool_init_count_child, max_md_proc));
+        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(
+                                              WORKERS_COUNT(1), 1, max_ec_proc));
         scs->total_process_init_count += (scs->dlf_process_init_count = clamp(1, 1, max_dlf_proc));
         scs->total_process_init_count += (scs->cdef_process_init_count = clamp(6, 1, max_cdef_proc));
         scs->total_process_init_count += (scs->rest_process_init_count = clamp(1, 1, max_rest_proc));
@@ -634,9 +658,11 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
         scs->total_process_init_count += (scs->tpl_disp_process_init_count = clamp(6, 1, max_tpl_proc));
         scs->total_process_init_count += (scs->mode_decision_configuration_process_init_count = clamp(
                                               2, 1, max_mdc_proc));
-        scs->total_process_init_count += (scs->enc_dec_process_init_count = clamp(
-                                              5, scs->picture_control_set_pool_init_count_child, max_md_proc));
-        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(2, 1, max_ec_proc));
+        scs->total_process_init_count +=
+            (scs->enc_dec_process_init_count = clamp(
+                 WORKERS_COUNT(5), scs->picture_control_set_pool_init_count_child, max_md_proc));
+        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(
+                                              WORKERS_COUNT(2), 1, max_ec_proc));
         scs->total_process_init_count += (scs->dlf_process_init_count = clamp(2, 1, max_dlf_proc));
         scs->total_process_init_count += (scs->cdef_process_init_count = clamp(6, 1, max_cdef_proc));
         scs->total_process_init_count += (scs->rest_process_init_count = clamp(2, 1, max_rest_proc));
@@ -652,9 +678,11 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
         scs->total_process_init_count += (scs->tpl_disp_process_init_count = clamp(6, 1, max_tpl_proc));
         scs->total_process_init_count += (scs->mode_decision_configuration_process_init_count = clamp(
                                               3, 1, max_mdc_proc));
-        scs->total_process_init_count += (scs->enc_dec_process_init_count = clamp(
-                                              6, scs->picture_control_set_pool_init_count_child, max_md_proc));
-        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(4, 1, max_ec_proc));
+        scs->total_process_init_count +=
+            (scs->enc_dec_process_init_count = clamp(
+                 WORKERS_COUNT(6), scs->picture_control_set_pool_init_count_child, max_md_proc));
+        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(
+                                              WORKERS_COUNT(4), 1, max_ec_proc));
         scs->total_process_init_count += (scs->dlf_process_init_count = clamp(3, 1, max_dlf_proc));
         scs->total_process_init_count += (scs->cdef_process_init_count = clamp(6, 1, max_cdef_proc));
         scs->total_process_init_count += (scs->rest_process_init_count = clamp(4, 1, max_rest_proc));
@@ -670,14 +698,16 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
         scs->total_process_init_count += (scs->tpl_disp_process_init_count = clamp(12, 1, max_tpl_proc));
         scs->total_process_init_count += (scs->mode_decision_configuration_process_init_count = clamp(
                                               8, 1, max_mdc_proc));
-        scs->total_process_init_count += (scs->enc_dec_process_init_count = clamp(
-                                              8, scs->picture_control_set_pool_init_count_child, max_md_proc));
-        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(10, 1, max_ec_proc));
+        scs->total_process_init_count +=
+            (scs->enc_dec_process_init_count = clamp(
+                 WORKERS_COUNT(8), scs->picture_control_set_pool_init_count_child, max_md_proc));
+        scs->total_process_init_count += (scs->entropy_coding_process_init_count = clamp(
+                                              WORKERS_COUNT(10), 1, max_ec_proc));
         scs->total_process_init_count += (scs->dlf_process_init_count = clamp(8, 1, max_dlf_proc));
         scs->total_process_init_count += (scs->cdef_process_init_count = clamp(8, 1, max_cdef_proc));
         scs->total_process_init_count += (scs->rest_process_init_count = clamp(10, 1, max_rest_proc));
     }
-
+#undef WORKERS_COUNT
     scs->total_process_init_count += 6; // single processes count
     if (scs->static_config.pass == 0 || scs->static_config.pass == 2) {
         SVT_INFO("Level of Parallelism: %u\n", lp);
