@@ -99,7 +99,7 @@ EbErrorType svt_aom_dlf_kernel_iter(void* context) {
         EbPictureBufferDesc* recon_buffer;
         svt_aom_get_recon_pic(pcs, &recon_buffer, is_16bit);
         svt_av1_loop_filter_init(pcs);
-        svt_av1_pick_filter_level((EbPictureBufferDesc*)pcs->ppcs->enhanced_pic, pcs, LPF_PICK_FROM_FULL_IMAGE);
+        svt_av1_pick_filter_level((EbPictureBufferDesc*)pcs->ppcs->enhanced_pic, pcs);
         if (pcs->zero_filt_sse == -1 &&
             (frm_hdr->loop_filter_params.filter_level[0] || frm_hdr->loop_filter_params.filter_level[1])) {
             pcs->zero_filt_sse = picture_sse_calculations(pcs, recon_buffer, /*plane*/ 0);

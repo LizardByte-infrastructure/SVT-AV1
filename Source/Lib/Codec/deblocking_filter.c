@@ -1107,14 +1107,16 @@ void svt_av1_pick_filter_level_by_q(PictureControlSet* pcs, uint8_t qindex, int3
 * svt_av1_pick_filter_level
 * Choose the optimal loop filter levels
 *************************************************************************************************/
-EbErrorType svt_av1_pick_filter_level(EbPictureBufferDesc* srcBuffer, // source input
-                                      PictureControlSet* pcs, LpfPickMethod method) {
+EbErrorType svt_av1_pick_filter_level(EbPictureBufferDesc* srcBuffer, PictureControlSet* pcs) {
     SequenceControlSet* scs     = pcs->scs;
     FrameHeader*        frm_hdr = &pcs->ppcs->frm_hdr;
     (void)srcBuffer;
     struct LoopFilter* const lf            = &frm_hdr->loop_filter_params;
     const int32_t            sharpness_val = CLIP3(0, 7, pcs->scs->static_config.sharpness);
-    lf->sharpness_level                    = sharpness_val;
+
+    LpfPickMethod method = (LpfPickMethod)pcs->ppcs->dlf_ctrls.pick_method;
+
+    lf->sharpness_level = sharpness_val;
     if (frm_hdr->frame_type == KEY_FRAME && pcs->scs->static_config.tune == TUNE_VQ) {
         lf->sharpness_level = MIN(7, sharpness_val + 2);
     } else if (pcs->scs->static_config.tune == TUNE_IQ || pcs->scs->static_config.tune == TUNE_MS_SSIM) {

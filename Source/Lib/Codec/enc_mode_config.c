@@ -5,6 +5,7 @@
 #include "aom_dsp_rtcd.h"
 #include "mode_decision.h"
 #include "coding_loop.h"
+#include "deblocking_filter.h"
 
 #define LOW_8x8_DIST_VAR_TH 25000
 #define HIGH_8x8_DIST_VAR_TH 50000
@@ -1572,6 +1573,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 0:
         ctrls->enabled                  = 0;
         ctrls->sb_based_dlf             = 0;
+        ctrls->pick_method              = LPF_PICK_FROM_FULL_IMAGE;
         ctrls->dlf_avg                  = 0;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 0;
@@ -1582,6 +1584,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 1:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 0;
+        ctrls->pick_method              = LPF_PICK_FROM_FULL_IMAGE;
         ctrls->dlf_avg                  = 0;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 0;
@@ -1592,6 +1595,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 2:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 0;
+        ctrls->pick_method              = LPF_PICK_FROM_FULL_IMAGE;
         ctrls->dlf_avg                  = 1;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 1;
@@ -1602,6 +1606,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 3:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 0;
+        ctrls->pick_method              = LPF_PICK_FROM_FULL_IMAGE;
         ctrls->dlf_avg                  = 1;
         ctrls->use_ref_avg_y            = 1;
         ctrls->use_ref_avg_uv           = 1;
@@ -1612,6 +1617,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 4:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 0;
+        ctrls->pick_method              = LPF_PICK_FROM_FULL_IMAGE;
         ctrls->dlf_avg                  = 1;
         ctrls->use_ref_avg_y            = 1;
         ctrls->use_ref_avg_uv           = 1;
@@ -1620,9 +1626,9 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
         ctrls->prev_dlf_dist_th         = 10;
         break;
     case 5:
-        ctrls->enabled      = 1;
-        ctrls->sb_based_dlf = 1;
-
+        ctrls->enabled                  = 1;
+        ctrls->sb_based_dlf             = 1;
+        ctrls->pick_method              = LPF_PICK_FROM_Q;
         ctrls->dlf_avg                  = 0;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 0;
@@ -1633,6 +1639,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 6:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 1;
+        ctrls->pick_method              = LPF_PICK_FROM_Q;
         ctrls->dlf_avg                  = 0;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 0;
@@ -1643,6 +1650,7 @@ static void svt_aom_set_dlf_controls(PictureParentControlSet* pcs, uint8_t dlf_l
     case 7:
         ctrls->enabled                  = 1;
         ctrls->sb_based_dlf             = 1;
+        ctrls->pick_method              = LPF_PICK_FROM_Q;
         ctrls->dlf_avg                  = 0;
         ctrls->use_ref_avg_y            = 0;
         ctrls->use_ref_avg_uv           = 0;
