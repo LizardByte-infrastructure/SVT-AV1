@@ -205,6 +205,23 @@ typedef enum ParallelLevel {
 #define PARALLEL_LEVEL_5_RANGE 23
 #define PARALLEL_LEVEL_6_RANGE 47
 
+// Map a machine core count to the default level of parallelism used when the
+// user leaves lp unset (lp == 0).
+static uint32_t get_default_level_of_parallelism(uint32_t core_count) {
+    if (core_count <= PARALLEL_LEVEL_1_RANGE) {
+        return PARALLEL_LEVEL_1;
+    } else if (core_count <= PARALLEL_LEVEL_2_RANGE) {
+        return PARALLEL_LEVEL_2;
+    } else if (core_count <= PARALLEL_LEVEL_3_RANGE) {
+        return PARALLEL_LEVEL_3;
+    } else if (core_count <= PARALLEL_LEVEL_4_RANGE) {
+        return PARALLEL_LEVEL_4;
+    } else if (core_count <= PARALLEL_LEVEL_5_RANGE) {
+        return PARALLEL_LEVEL_5;
+    }
+    return PARALLEL_LEVEL_6;
+}
+
 //return max wavefronts in a given picture
 static uint32_t get_max_wavefronts(uint32_t width, uint32_t height, uint32_t blk_size) {
     assert(width > 0 && height > 0);
@@ -299,19 +316,7 @@ static EbErrorType load_default_buffer_configuration_settings(SequenceControlSet
     if (lp == 0) {
         // In the default config (lp == 0) the core count will determine the
         // amount of parallelism used
-        if (core_count <= PARALLEL_LEVEL_1_RANGE) {
-            lp = PARALLEL_LEVEL_1;
-        } else if (core_count <= PARALLEL_LEVEL_2_RANGE) {
-            lp = PARALLEL_LEVEL_2;
-        } else if (core_count <= PARALLEL_LEVEL_3_RANGE) {
-            lp = PARALLEL_LEVEL_3;
-        } else if (core_count <= PARALLEL_LEVEL_4_RANGE) {
-            lp = PARALLEL_LEVEL_4;
-        } else if (core_count <= PARALLEL_LEVEL_5_RANGE) {
-            lp = PARALLEL_LEVEL_5;
-        } else {
-            lp = PARALLEL_LEVEL_6;
-        }
+        lp = get_default_level_of_parallelism(core_count);
     }
     scs->lp = lp;
     set_segments_numbers(scs);
@@ -4614,6 +4619,14 @@ static void copy_api_from_app(SequenceControlSet* scs, EbSvtAv1EncConfiguration*
             "Level of parallelism does not correspond to a target number of processors to use. See Docs/Parameters.md "
             "for info.\n");
         scs->static_config.level_of_parallelism = PARALLEL_LEVEL_6;
+    }
+    // When lp is left unset (0), resolve it to the core-count-based default now,
+    // before any pipeline setup reads static_config.level_of_parallelism. This
+    // keeps every downstream single-thread check (== 1) consistent with the
+    // derived scs->lp used for segment/dispatcher setup; otherwise a 1-core
+    // machine gets scs->lp == 1 (ST dispatch) while these checks still see 0.
+    if (scs->static_config.level_of_parallelism == 0) {
+        scs->static_config.level_of_parallelism = get_default_level_of_parallelism(get_num_processors());
     }
 
     scs->static_config.qp            = config_struct->qp;
