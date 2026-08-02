@@ -1642,6 +1642,7 @@ typedef enum FrameContextIndex {
 #define QINDEX_BITS 8
 #define MIN_QP_VALUE 0
 #define MAX_QP_VALUE 63
+#define LAMBDA_WEIGHT_NEUTRAL 128
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
 #define NUM_QM_LEVELS (1 << QM_LEVEL_BITS)

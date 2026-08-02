@@ -9517,6 +9517,9 @@ void svt_aom_sig_deriv_mode_decision_config_default(SequenceControlSet* scs, Pic
     // The multiplier of "28" was derived empirically to allow a smooth bitrate decrease as
     // CRF increases from 63.25 (extended_crf_qindex_offset = 1) to 70 (extended_crf_qindex_offset = 4 * 7)
     if (scs->static_config.qp == MAX_QP_VALUE && scs->static_config.extended_crf_qindex_offset) {
+        if (pcs->lambda_weight == 0) {
+            pcs->lambda_weight = LAMBDA_WEIGHT_NEUTRAL;
+        }
         pcs->lambda_weight += scs->static_config.extended_crf_qindex_offset * 28;
     }
 
@@ -9936,6 +9939,9 @@ void svt_aom_sig_deriv_mode_decision_config_rtc(SequenceControlSet* scs, Picture
     // The multiplier of "28" was derived empirically to allow a smooth bitrate decrease as
     // CRF increases from 63.25 (extended_crf_qindex_offset = 1) to 70 (extended_crf_qindex_offset = 4 * 7)
     if (scs->static_config.qp == MAX_QP_VALUE && scs->static_config.extended_crf_qindex_offset) {
+        if (pcs->lambda_weight == 0) {
+            pcs->lambda_weight = LAMBDA_WEIGHT_NEUTRAL;
+        }
         pcs->lambda_weight += scs->static_config.extended_crf_qindex_offset * 28;
     }
 
@@ -10173,6 +10179,9 @@ void svt_aom_sig_deriv_mode_decision_config_allintra(SequenceControlSet* scs, Pi
     // The multiplier of "28" was derived empirically to allow a smooth bitrate decrease as
     // CRF increases from 63.25 (extended_crf_qindex_offset = 1) to 70 (extended_crf_qindex_offset = 4 * 7)
     if (scs->static_config.qp == MAX_QP_VALUE && scs->static_config.extended_crf_qindex_offset) {
+        if (pcs->lambda_weight == 0) {
+            pcs->lambda_weight = LAMBDA_WEIGHT_NEUTRAL;
+        }
         pcs->lambda_weight += scs->static_config.extended_crf_qindex_offset * 28;
     }
     // Set the dlf level
