@@ -340,12 +340,13 @@ void set_segments_numbers(SequenceControlSet* scs) {
         for (;;) {
             const uint32_t next_rows = (rows >= cols && rows > 1) ? rows - 1 : rows;
             const uint32_t next_cols = (next_rows == rows && cols > 1) ? cols - 1 : cols;
-            if ((next_rows == rows && next_cols == cols) || next_rows * next_cols < min_segs)
+            if ((next_rows == rows && next_cols == cols) || next_rows * next_cols < min_segs) {
                 break;
+            }
             rows = next_rows;
             cols = next_cols;
         }
-        scs->me_segment_row_count_array = scs->tf_segment_row_count    = rows;
+        scs->me_segment_row_count_array = scs->tf_segment_row_count = rows;
         scs->me_segment_col_count_array = scs->tf_segment_column_count = cols;
     }
 }
