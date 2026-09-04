@@ -1308,6 +1308,31 @@ static bool apply_ref_use(PictureParentControlSet* pcs, PictureDecisionContext* 
                   (unsigned long)pcs->picture_number);
         return false;
     }
+    // Reject a USE whose anchor the decoder can no longer reference, so the
+    // caller falls back to ordinary refs rather than emit a frame the decoder
+    // will drop. Once an anchor is older than 2^delta_frame_id_length the
+    // decoder has cleared its slot's RefValid (mark_ref_frames) and
+    // only a refresh restores it, which a held anchor never gets.
+    //
+    // Measured on picture_number, which does not wrap. Frame ids do, so an id
+    // difference would read a long-held anchor as recent again once past a full
+    // id period. Bounding the age also bounds what the header writer emits:
+    // ids step by one over the full span, so the delta it computes equals this
+    // age exactly.
+    if (pcs->scs->seq_header.frame_id_numbers_present_flag) {
+        const uint64_t age     = pcs->picture_number - ctx->dpb[slot].picture_number;
+        const uint64_t max_age = 1ull << pcs->scs->seq_header.delta_frame_id_length;
+        if (svt_aom_frame_id_age_unusable(age, pcs->scs->seq_header.delta_frame_id_length)) {
+            SVT_WARN(
+                "Ref-frame mgmt: USE pic_id=%u anchor unreferenceable "
+                "(age=%lu max=%lu); rejecting -> fallback (poc=%lu)\n",
+                (unsigned)pid,
+                (unsigned long)age,
+                (unsigned long)max_age,
+                (unsigned long)pcs->picture_number);
+            return false;
+        }
+    }
     Av1RpsNode*    rps = &pcs->av1_ref_signal;
     const uint64_t poc = ctx->dpb[slot].picture_number;
     /* AV1 ref positions LAST..ALT = INTER_REFS_PER_FRAME (7) entries. */
@@ -5165,6 +5190,14 @@ static void process_pics(SequenceControlSet* scs, PictureDecisionContext* ctx) {
 // update the DPB stored in the PD context
 static void update_dpb(PictureParentControlSet* pcs, PictureDecisionContext* ctx) {
     Av1RpsNode* av1_rps = &pcs->av1_ref_signal;
+    // Snapshot each slot's frame_id before refresh overwrites it: the header
+    // writer cannot see ctx->dpb and needs these to emit per-ref
+    // delta_frame_id.
+    if (pcs->scs->seq_header.frame_id_numbers_present_flag) {
+        for (int i = 0; i < REF_FRAMES; i++) {
+            pcs->frm_hdr.ref_frame_id[i] = svt_aom_frame_id_from_pic_num(ctx->dpb[i].picture_number);
+        }
+    }
     if (av1_rps->refresh_frame_mask) {
         for (int i = 0; i < REF_FRAMES; i++) {
             if ((av1_rps->refresh_frame_mask >> i) & 1) {

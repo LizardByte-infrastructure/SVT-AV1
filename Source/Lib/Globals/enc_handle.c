@@ -4767,6 +4767,15 @@ static void copy_api_from_app(SequenceControlSet* scs, EbSvtAv1EncConfiguration*
     // Runtime MG-size change: propagate caller's ceiling (0 = MG size fixed).
     scs->static_config.max_hierarchical_levels = config_struct->max_hierarchical_levels;
 
+    // Application-managed LTR addresses references by frame_id so a decoder can
+    // detect a DPB that has diverged from the encoder's under loss. Enabled only
+    // for LTR; every other configuration keeps the flag clear.
+    //
+    // current_frame_id is derived from picture_number, which is only a valid id
+    // source while decode order matches input order. LTR requires LOW_DELAY
+    // (enforced in enc_settings.c), which is what guarantees that.
+    scs->seq_header.frame_id_numbers_present_flag = scs->static_config.max_managed_refs > 0;
+
     // Override settings for Still IQ tune
     if (scs->static_config.tune == TUNE_IQ) {
         SVT_WARN(

@@ -3313,12 +3313,15 @@ static void write_uncompressed_header_obu(SequenceControlSet* scs /*Av1Comp *cpi
             //ref_cnt_fb(frame_bufs, &cm->new_fb_idx, frame_to_show);
 
             svt_aom_wb_write_bit(wb, 1); // show_existing_frame
+            // ref_frame_id[] holds a pre-refresh snapshot, which is the right
+            // value here only because frame_id is confined to LOW_DELAY, where
+            // set_frame_display_params never emits show_existing.
+            assert(!scs->seq_header.frame_id_numbers_present_flag &&
+                   "show_existing_frame with frame_id: ref_frame_id[] is a pre-refresh snapshot");
             svt_aom_wb_write_literal(wb, frm_hdr->show_existing_frame, 3);
             if (scs->seq_header.frame_id_numbers_present_flag) {
-                SVT_ERROR("frame_id_numbers_present_flag not supported yet\n");
-                /*int32_t frame_id_len = cm->seq_params.frame_id_length;
-                int32_t display_frame_id = cm->ref_frame_id[cpi->show_existing_frame];
-                svt_aom_wb_write_literal(wb, display_frame_id, frame_id_len);*/
+                const int32_t frame_id_len = scs->seq_header.frame_id_length;
+                svt_aom_wb_write_literal(wb, frm_hdr->ref_frame_id[frm_hdr->show_existing_frame], frame_id_len);
             }
 
             //        if (cm->reset_decoder_state &&
@@ -3502,19 +3505,36 @@ static void write_uncompressed_header_obu(SequenceControlSet* scs /*Av1Comp *cpi
                 }
 
                 if (scs->seq_header.frame_id_numbers_present_flag) {
-                    SVT_ERROR("frame_id_numbers_present_flag not supported yet\n");
-                    //int32_t i = get_ref_frame_map_idx(cpi, ref_frame);
-                    //int32_t frame_id_len = cm->seq_params.frame_id_length;
-                    //int32_t diff_len = cm->seq_params.delta_frame_id_length;
-                    //int32_t delta_frame_id_minus1 =
-                    //    ((cm->current_frame_id - cm->ref_frame_id[i] +
-                    //    (1 << frame_id_len)) %
-                    //    (1 << frame_id_len)) -
-                    //    1;
-                    //if (delta_frame_id_minus1 < 0 ||
-                    //    delta_frame_id_minus1 >= (1 << diff_len))
-                    //    cm->invalid_delta_frame_id_minus1 = 1;
-                    //svt_aom_wb_write_literal(wb, delta_frame_id_minus1, diff_len);
+                    const int32_t slot     = get_ref_frame_map_idx(pcs, ref_frame);
+                    const int32_t diff_len = scs->seq_header.delta_frame_id_length;
+                    assert((uint32_t)slot < REF_FRAMES && "ref_dpb_index out of range with frame_id enabled");
+                    int32_t delta_frame_id_minus1 = svt_aom_frame_id_delta_minus1(
+                        frm_hdr->current_frame_id, frm_hdr->ref_frame_id[slot], scs->seq_header.frame_id_length);
+                    // Every emitted reference is either an anchor bounded by
+                    // apply_ref_use, or a slot in 0..3: prune_refs collapses the
+                    // positions that reach 4..7 while ref counts are <= 2, which
+                    // svt_av1_enc_set_parameter requires whenever LTR is on. So
+                    // the delta always fits.
+                    //
+                    // Should that ever break, the decoder rejects the frame
+                    // either way: it reconstructs the reference id from the delta
+                    // and compares it for equality. Clamp anyway, so the emitted
+                    // value is a defined one rather than whatever the literal
+                    // writer makes of a negative int -- it shifts the value right
+                    // per bit, which is implementation-defined when signed.
+                    if (delta_frame_id_minus1 < 0 || delta_frame_id_minus1 >= (1 << diff_len)) {
+                        SVT_ERROR(
+                            "frame_id: delta_frame_id_minus1=%d out of [0,%d) (current=%u ref=%u slot=%d); "
+                            "clamping, the decoder will reject this frame\n",
+                            delta_frame_id_minus1,
+                            (1 << diff_len),
+                            (unsigned)frm_hdr->current_frame_id,
+                            (unsigned)frm_hdr->ref_frame_id[slot],
+                            slot);
+                        assert(0 && "frame_id delta out of range");
+                        delta_frame_id_minus1 = (1 << diff_len) - 1;
+                    }
+                    svt_aom_wb_write_literal(wb, delta_frame_id_minus1, diff_len);
                 }
             }
 

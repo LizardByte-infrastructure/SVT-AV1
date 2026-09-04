@@ -134,6 +134,8 @@ class RefDecoder {
         // were refreshed). frame_corrupted_list[i] is 0 on a clean decode.
         std::vector<uint8_t> refresh_frame_flags_list;
         std::vector<int> frame_corrupted_list;
+        // Sequence-header frame_id_numbers_present_flag, parsed by ParseUtil.
+        int frame_id_numbers_present_flag;
         StreamInfo() {
             format = IMG_FMT_420;
             tile_rows = 0;
@@ -147,6 +149,7 @@ class RefDecoder {
             qindex_list.clear();
             refresh_frame_flags_list.clear();
             frame_corrupted_list.clear();
+            frame_id_numbers_present_flag = -1;
         }
     } StreamInfo;
 

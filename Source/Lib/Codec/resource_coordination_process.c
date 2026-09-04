@@ -440,7 +440,12 @@ static EbErrorType reset_pcs_av1(PictureParentControlSet* pcs) {
     frm_hdr->delta_lf_params.delta_lf_res     = 0;
     frm_hdr->delta_lf_params.delta_lf_multi   = 0;
 
-    frm_hdr->current_frame_id           = 0;
+    if (pcs->scs->seq_header.frame_id_numbers_present_flag) {
+        // LOW_DELAY: decode order == input order, so picture_number is a stable id.
+        frm_hdr->current_frame_id = svt_aom_frame_id_from_pic_num(pcs->picture_number);
+    } else {
+        frm_hdr->current_frame_id = 0;
+    }
     frm_hdr->frame_refs_short_signaling = 0;
     pcs->allow_comp_inter_inter         = 0;
     //  int32_t all_one_sided_refs;
