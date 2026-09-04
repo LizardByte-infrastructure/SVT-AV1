@@ -1215,66 +1215,30 @@ static void apply_ref_clear(PictureParentControlSet* pcs, PictureDecisionContext
     ctx->pic_id_per_dpb_slot[slot] = 0;
 }
 
-// STORE-safe DPB slot pool: complement of the slots that some active LD-CBR
-// pred-struct branch refreshes as the sole bit of refresh_frame_mask.
-// Locking one of those slots would collapse the branch's refresh mask to 0
-// in apply_ref_mgmt_events Phase 3 → crash in assign_and_release_pa_refs.
-// Mirror of av1_generate_rps_info LD-CBR branch (line 2024-2126); keep in
-// sync when refresh_frame_mask assignments there change. LTR is gated to
-// LD-CBR in enc_settings.c — LD-CRF's shifted lay1_offset would need its
-// own branch here. Slot 7's long-base period-128 refresh is silently
-// suppressed when STOREd by the same Phase 3 guard, so it stays safe.
-static uint8_t exclusive_write_slots_mask_ld_cbr(const SequenceControlSet* scs) {
-    uint8_t       mask      = 0;
-    const uint8_t hier      = scs->static_config.hierarchical_levels;
-    const uint8_t ld_reduce = scs->mrp_ctrls.ld_reduce_ref_buffs;
-
-    // TID-0: single-bit `1 << lay0_toggle` (toggle ∈ {0,1,2}) only at
-    // ld_reduce=0; backup bits (`| 0xf0` / `| 0xfc`) make it non-exclusive otherwise.
-    if (ld_reduce == 0) {
-        mask |= 0x07u;
-    }
-    // TID-1: always single-bit; slot depends on ld_reduce.
-    if (hier >= 1) {
-        switch (ld_reduce) {
-        case 0:
-            mask |= (uint8_t)((1u << LAY1_OFF) | (1u << (LAY1_OFF + 1)));
-            break;
-        case 1:
-            mask |= (uint8_t)(1u << LAY1_OFF);
-            break;
-        case 2:
-            mask |= (uint8_t)(1u << 1);
-            break;
-        default:
-            assert(0 && "unhandled ld_reduce_ref_buffs");
-            break;
-        }
-    }
-    // TID-2: ld_reduce > 0 force-zeros TID-2 refresh, so only exclusive at ld_reduce=0.
-    if (hier >= 2 && ld_reduce == 0) {
-        mask |= (uint8_t)(1u << LAY2_OFF);
-    }
-    return mask;
-}
-
+// STORE-safe DPB slot pool for application-managed LTR: the encoder's regular
+// references own the bottom 4 slots, LTR anchors the top 4.
+//
+// The split holds because LTR requires ld_reduce_ref_buffs >= 1 (rejected at
+// init in svt_av1_enc_set_parameter otherwise), which means:
+//   - ref counts <= 2, so prune_refs collapses LAST3 onto LAST and the
+//     long-base slot 7 is never read;
+//   - every nonzero TID-0/TID-1 refresh carries its 0xfc/0xf0 backup bits, so
+//     masking the top 4 out can never collapse refresh_frame_mask to 0 in
+//     Phase 3 (a non-reference TID-1 frame refreshes nothing at all, which
+//     Phase 3 leaves alone);
+//   - TID-2 refresh is force-zeroed for any ld_reduce > 0, so LAY2_OFF (slot 5)
+//     is not written either.
+// An anchor in slot 7 suppresses the period-128 long-base refresh via the same
+// Phase-3 guard, which is harmless since nothing reads that slot here.
 uint8_t svt_aom_ref_mgmt_storeable_slots_mask(const SequenceControlSet* scs) {
-    // Flat IPP (hier=0): regular refs only ever occupy slots [0..flat_max_refs-1]
-    // (flat_max_refs <= 4) and lay0_toggle rotates through them, while slots 4-7
-    // are the per-frame `| 0xf0` refresh/clear backup and are never read as refs.
-    // Returning 0xFF is crash-safe (the 0xf0 backup keeps the Phase-3 refresh
-    // guard from collapsing refresh_frame_mask to 0), but STOREing into a bottom
-    // slot would let the Phase-3 guard freeze a slot the toggle still rotates
-    // through, silently dropping a live ref out of the window. Restrict STORE to
-    // the top 4 so it never interferes with the regular sliding-window refs.
-    if (scs->static_config.rtc && scs->static_config.hierarchical_levels == 0) {
-        return 0xF0u;
+    assert(scs->static_config.hierarchical_levels <= 2 && "LD-CBR RPS supports hierarchical_levels <= 2");
+    // An empty pool makes every STORE no-op, so LTR degrades to unavailable
+    // rather than pinning a slot the encoder is still predicting from.
+    if (scs->mrp_ctrls.ld_reduce_ref_buffs < 1) {
+        assert(0 && "LTR slot pool assumes ref counts <= 2; gated in svt_av1_enc_set_parameter");
+        return 0u;
     }
-    if (scs->static_config.pred_structure == LOW_DELAY && scs->static_config.hierarchical_levels >= 1) {
-        return (uint8_t)(~exclusive_write_slots_mask_ld_cbr(scs) & 0xFFu);
-    }
-    // RA / other paths: not LTR-eligible (rejected in enc_settings.c).
-    return 0xFFu;
+    return 0xF0u;
 }
 
 // STORE: place the current frame into the lowest free STORE-safe DPB slot

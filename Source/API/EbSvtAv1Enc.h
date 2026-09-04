@@ -1025,12 +1025,19 @@ typedef struct EbSvtAv1EncConfiguration {
      * 1..4       : enable the STORE / CLEAR / USE event API. The
      *              ref-buffer pool grows by this many entries (one full
      *              picture buffer each) to hold the locked anchors.
-     *              The encoder still uses all 8 DPB slots dynamically;
-     *              STORE locks one slot at a time, and CLEAR releases.
+     *              The DPB is split: the encoder's own references use
+     *              slots {0..3} and anchors use {4..7}, so at most 4 can
+     *              be held at once. STORE locks one, CLEAR releases it.
      *
      * Validation (svt_av1_verify_settings):
      *   - max_managed_refs <= 4
      *   - if > 0: pred_structure must be LOW_DELAY.
+     *   - if > 0: rate_control_mode must be CBR.
+     *
+     * Additionally rejected in svt_av1_enc_set_parameter once the preset's
+     * reference counts are known: the split requires all counts <= 2, so a
+     * multi-reference preset is refused rather than silently retuned. Use
+     * enc_mode >= 9 with rtc=1, or enc_mode >= 10 without.
      */
     uint8_t max_managed_refs;
 

@@ -3559,8 +3559,7 @@ static void set_mrp_ctrl_with_level(const SequenceControlSet* scs, MrpCtrls* mrp
 }
 
 // Preset-driven entry point for setting mrp_ctrl. Owns the
-// enc_mode->mrp_level cascade; callers needing to FORCE a specific level
-// (e.g. LTR override) call set_mrp_ctrl_with_level directly.
+// enc_mode->mrp_level cascade.
 static void set_mrp_ctrl(const SequenceControlSet* scs, MrpCtrls* mrp_ctrl, EncMode enc_mode) {
     uint8_t mrp_level;
     if (scs->static_config.rtc) {
@@ -4255,54 +4254,9 @@ static void set_param_based_on_input(SequenceControlSet* scs) {
     if (scs->static_config.scene_change_detection == 1) {
         SVT_WARN("Scene Change is not optimal and may produce suboptimal keyframe placements\n");
     }
-    // LTR DPB-layout constraint: the natural mrp_level may not provide enough
-    // STORE-safe DPB slots for the configured max_managed_refs. Override to
-    // the cheapest level that does, preferring to preserve non_base list0
-    // count (non_base refs are consulted by every TID>0 frame). RTC-tuned
-    // non-flat-IPP per-preset native capacity:
-    //
-    //   M9   → level 6 (list0 3/3) → ld_reduce 0 → 2 STOREs  (insufficient)
-    //   M10  → level 9 (list0 3/1) → ld_reduce 0 → 2 STOREs  (insufficient)
-    //   M11+ → level 0 (list0 1/1) → ld_reduce 2 → 4 STOREs  (native)
-    //
-    // Fallback choice: level 8 (list0 2/2) when non_base ≥ 2, else level 10
-    // (list0 2/1). See src/Docs/Appendix-Ref-Frame-Management.md §5.
     set_mrp_ctrl(scs, &scs->mrp_ctrls, scs->static_config.enc_mode);
-    if (scs->static_config.max_managed_refs > 0) {
-        const uint8_t safe_pool_size = (uint8_t)svt_numbits(svt_aom_ref_mgmt_storeable_slots_mask(scs));
-        if (safe_pool_size < scs->static_config.max_managed_refs) {
-            const uint8_t fallback_level = (scs->mrp_ctrls.non_base_ref_list0_count >= 2) ? 8 : 10;
-            SVT_LOG(
-                "LTR enabled (max_managed_refs=%u): natural safe pool %u "
-                "insufficient, forcing mrp_level=%u\n",
-                (unsigned)scs->static_config.max_managed_refs,
-                (unsigned)safe_pool_size,
-                (unsigned)fallback_level);
-            set_mrp_ctrl_with_level(scs, &scs->mrp_ctrls, fallback_level);
-        }
-    }
 
-    // Defensive invariant: the override must have left enough STORE-safe
-    // slots. Trips if a future change to set_mrp_ctrl's per-level counts
-    // silently regresses below the cap.
-    if (scs->static_config.max_managed_refs > 0) {
-        const uint8_t safe_pool_size = (uint8_t)svt_numbits(svt_aom_ref_mgmt_storeable_slots_mask(scs));
-        if (safe_pool_size < scs->static_config.max_managed_refs) {
-            SVT_ERROR(
-                "LTR invariant: safe-pool %u < max_managed_refs %u "
-                "(ld_reduce=%u list0=%u/%u hier=%u rtc=%u)\n",
-                (unsigned)safe_pool_size,
-                (unsigned)scs->static_config.max_managed_refs,
-                (unsigned)scs->mrp_ctrls.ld_reduce_ref_buffs,
-                (unsigned)scs->mrp_ctrls.base_ref_list0_count,
-                (unsigned)scs->mrp_ctrls.non_base_ref_list0_count,
-                (unsigned)scs->static_config.hierarchical_levels,
-                (unsigned)scs->static_config.rtc);
-            assert(0 && "LTR safe-pool size < max_managed_refs");
-        }
-    }
-
-    // Snapshot the post-override state; PRESET_CHANGE_EVENT clamps against this.
+    // Snapshot; PRESET_CHANGE_EVENT clamps against this.
     scs->mrp_ctrls_init = scs->mrp_ctrls;
     // set to 1 if multipass and less than 200 frames in resourcecordination
     scs->is_short_clip = scs->static_config.gop_constraint_rc ? 1 : 0;
@@ -4898,6 +4852,25 @@ EB_API EbErrorType svt_av1_enc_set_parameter(EbComponentType*          svt_enc_c
     }
 
     set_param_based_on_input(scs);
+
+    // LTR pins anchors in DPB slots {4,5,6,7} (svt_aom_ref_mgmt_storeable_slots_mask).
+    // That is only safe while the regular refs stay in the bottom 4, i.e. ref counts
+    // <= 2, which is exactly ld_reduce_ref_buffs >= 1. At ld_reduce == 0 the encoder
+    // uses 3 refs (LAST3 = long_base = slot 7) and exclusively refreshes slots 4/5,
+    // so anchors would collide. Checked here: this is the first point where
+    // mrp_ctrls is populated and an error can still be returned.
+    if (scs->static_config.max_managed_refs > 0 && scs->mrp_ctrls.ld_reduce_ref_buffs == 0) {
+        SVT_ERROR(
+            "max_managed_refs > 0 requires a preset whose reference counts are all <= 2 "
+            "(ld_reduce_ref_buffs >= 1); use enc_mode >= 9 with rtc=1, or enc_mode >= 10 "
+            "without. Got ld_reduce_ref_buffs=0 (enc_mode=%d rtc=%u list0=%u/%u)\n",
+            (int)scs->static_config.enc_mode,
+            (unsigned)scs->static_config.rtc,
+            (unsigned)scs->mrp_ctrls.base_ref_list0_count,
+            (unsigned)scs->mrp_ctrls.non_base_ref_list0_count);
+        return EB_ErrorBadParameter;
+    }
+
     // Initialize the Prediction Structure Group. Free any group from a previous
     // svt_av1_enc_set_parameter() call on this handle so it is not leaked.
     EB_DELETE(enc_handle->scs_instance->enc_ctx->prediction_structure_group_ptr);
