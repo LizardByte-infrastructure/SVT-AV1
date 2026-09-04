@@ -309,7 +309,7 @@ typedef struct SvtAv1RateInfo {
 //   - Required encoder config: pred_structure == LOW_DELAY,
 //     rate_control_mode == CBR, hierarchical_levels in {0,1,2}, and a
 //     preset whose reference counts are all <= 2 (enc_mode >= 9 with
-//     rtc=1, or enc_mode >= 10 without).
+//     rtc=1, or enc_mode >= 10 without), and switch frames off.
 //   - Events apply only on base-layer (temporal_layer_index == 0) inputs.
 //   - Key frames implicitly release all anchors.
 //   - Pre-condition violations either FAIL-HARD (returns

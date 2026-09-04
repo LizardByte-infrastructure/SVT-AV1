@@ -62,6 +62,7 @@ type, only the FIRST is kept and the rest are dropped with a warning.
 | `rate_control_mode` | `CBR` | LD-CRF has a different DPB layout (shifted `lay1_offset`) that has not been audited for STORE-pool safety. `enc_settings.c` rejects non-CBR. |
 | `hierarchical_levels` | 0 (L1T1) or 1/2 (L1T2/L1T3) | hier >= 3 has not been validated. |
 | `max_managed_refs` | 1..4 | ABI cap; matches buffer-pool sizing in `enc_handle.c`. |
+| `sframe_dist` / `sframe_posi` | unset | An S-frame must refresh all eight DPB slots, which evicts every anchor on the decoder side only. Rejected in combination -- see section 3's S-frame note. |
 | preset | one whose reference counts are all <= 2 | The anchor pool is the top 4 DPB slots, so the encoder's own references must fit in the bottom 4. Rejected otherwise -- see section 5. |
 | `force_key_frames` | true (recommended) | Required for per-frame `pic_type=KEY` requests in LD; the USE-fallback path depends on it. |
 
@@ -79,10 +80,13 @@ With `hierarchical_levels = 1` or `2` in LD-CBR mode the application
 must track which input frames are base-layer and only attach events to
 those — events attached to non-base frames are dropped with a warning.
 
-S-frame interaction: S-frames are NOT treated as automatic anchor resets
-by the ref-mgmt layer. If the application emits an S-frame without first
-CLEARing its anchors, those anchors remain valid for future USE; whether
-that is desirable depends on the application's resync protocol.
+S-frame interaction: the two features are mutually exclusive and the
+combination is rejected at configuration time. An S-frame refreshes all
+eight DPB slots and carries no `refresh_frame_flags`, so a decoder always
+evicts every anchor, while the encoder's Phase-3 guard keeps the anchor
+slots out of the refresh. The two DPB views would diverge from the
+S-frame onwards, and a later USE would predict from a different picture
+at each end.
 
 ## 4. Error handling
 

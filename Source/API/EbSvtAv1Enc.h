@@ -1033,6 +1033,9 @@ typedef struct EbSvtAv1EncConfiguration {
      *   - max_managed_refs <= 4
      *   - if > 0: pred_structure must be LOW_DELAY.
      *   - if > 0: rate_control_mode must be CBR.
+     *   - if > 0: switch frames must be off (sframe_dist == 0 and no
+     *     sframe_posi). An S-frame refreshes all 8 DPB slots, evicting
+     *     every anchor on the decoder side.
      *
      * Additionally rejected in svt_av1_enc_set_parameter once the preset's
      * reference counts are known: the split requires all counts <= 2, so a

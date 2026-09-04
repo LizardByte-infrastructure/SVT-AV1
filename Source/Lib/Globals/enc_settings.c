@@ -174,6 +174,18 @@ EbErrorType svt_av1_verify_settings(SequenceControlSet* scs) {
                   (unsigned)config->rate_control_mode);
         return_error = EB_ErrorBadParameter;
     }
+    if (config->max_managed_refs > 0 && (config->sframe_dist > 0 || config->sframe_posi.sframe_posis)) {
+        // An S-frame refreshes all 8 DPB slots and signals no refresh_frame_flags,
+        // so a decoder unconditionally evicts every anchor. The encoder keeps them
+        // (the STORE guard masks held slots out of the refresh), and the two DPB
+        // views diverge from that point on.
+        SVT_ERROR(
+            "max_managed_refs > 0 is not supported with switch frames "
+            "(sframe_dist=%d sframe_num=%u)\n",
+            config->sframe_dist,
+            (unsigned)config->sframe_posi.sframe_num);
+        return_error = EB_ErrorBadParameter;
+    }
     // Runtime MG-size change: ABI cap, restricted to where MG_SIZE_CHANGE_EVENT
     // is accepted, and never below the level count already configured.
     if (config->max_hierarchical_levels > 2) {
