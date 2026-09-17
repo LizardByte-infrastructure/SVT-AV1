@@ -307,7 +307,7 @@ void set_segments_numbers(SequenceControlSet* scs) {
            : scs->input_resolution <= INPUT_SIZE_1080p_RANGE  ? MIN(rest_seg_h, 4)
                                                               : MIN(rest_seg_h, 6);
 
-    // Low-delay ME segment right-sizing.
+    // Low-delay ME segment right-sizing, gated to <=540p (INPUT_SIZE_480p_RANGE).
     //
     // The ME grid set above is resolution-blind: it is a flat 8x6 = 48 segments for every
     // resolution >= 640x360, which at 360p is only ~1.25 superblocks of work per segment. In
@@ -322,9 +322,11 @@ void set_segments_numbers(SequenceControlSet* scs) {
     //   - a bound on the work per segment, so a large frame is never reduced to a handful of
     //     coarse segments that serialize the ME stage.
     // Both floors err towards more segments: getting them wrong costs some of the saving, it
-    // does not cost throughput. VOD/RA, lp1, and resolutions already at a 1x1 grid (CIF and
-    // below) are untouched.
-    if (scs->static_config.pred_structure == LOW_DELAY && lp != PARALLEL_LEVEL_1 && lp <= PARALLEL_LEVEL_4) {
+    // does not cost throughput. 720p and above stay on the stock 8x6: pinned 4-core 720p lp3
+    // regresses when the grid is reduced. VOD/RA, lp1, lp5+, and 1x1 grids (CIF and below)
+    // are also untouched.
+    if (scs->static_config.pred_structure == LOW_DELAY && lp != PARALLEL_LEVEL_1 && lp <= PARALLEL_LEVEL_4 &&
+        scs->input_resolution <= INPUT_SIZE_480p_RANGE) {
         const uint32_t max_sbs_per_seg = 20;
         const uint32_t lp_cores        = (lp == PARALLEL_LEVEL_2) ? PARALLEL_LEVEL_2_RANGE
                    : (lp == PARALLEL_LEVEL_3)                     ? PARALLEL_LEVEL_3_RANGE
