@@ -203,6 +203,11 @@ EbErrorType svt_av1_verify_settings(SequenceControlSet* scs) {
                   (unsigned)config->hierarchical_levels);
         return_error = EB_ErrorBadParameter;
     }
+    if (config->max_allowed_consecutive_frames_skips > 0 &&
+        !(config->rtc && config->pred_structure == LOW_DELAY && config->rate_control_mode == SVT_AV1_RC_MODE_CBR)) {
+        SVT_ERROR("max_allowed_consecutive_frames_skips > 0 requires RTC low-delay CBR\n");
+        return_error = EB_ErrorBadParameter;
+    }
     if (config->rate_control_mode == SVT_AV1_RC_MODE_VBR && config->pred_structure == LOW_DELAY) {
         SVT_ERROR("VBR Rate control is currently not supported for LOW_DELAY, use CBR mode\n");
         return_error = EB_ErrorBadParameter;
@@ -1108,6 +1113,8 @@ EbErrorType svt_av1_set_default_params(EbSvtAv1EncConfiguration* config_ptr) {
 
     // MG size fixed for the session by default → legacy pool sizing.
     config_ptr->max_hierarchical_levels = 0;
+
+    config_ptr->max_allowed_consecutive_frames_skips = 0;
 
     return return_error;
 }

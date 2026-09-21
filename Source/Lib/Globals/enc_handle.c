@@ -4776,6 +4776,8 @@ static void copy_api_from_app(SequenceControlSet* scs, EbSvtAv1EncConfiguration*
     // (enforced in enc_settings.c), which is what guarantees that.
     scs->seq_header.frame_id_numbers_present_flag = scs->static_config.max_managed_refs > 0;
 
+    scs->static_config.max_allowed_consecutive_frames_skips = config_struct->max_allowed_consecutive_frames_skips;
+
     // Override settings for Still IQ tune
     if (scs->static_config.tune == TUNE_IQ) {
         SVT_WARN(
@@ -5404,9 +5406,13 @@ static void copy_input_buffer(SequenceControlSet* scs, EbBufferHeaderType* dst, 
 
 // Update the input picture definitions: resolution of the sequence
 static EbErrorType validate_on_the_fly_settings(EbBufferHeaderType* input_ptr, SequenceControlSet* scs,
-                                                EbHandle config_mutex) {
+                                                EbHandle config_mutex, bool* has_protected_event) {
+    *has_protected_event = false;
     EbPrivDataNode* node = (EbPrivDataNode*)input_ptr->p_app_private;
     while (node) {
+        *has_protected_event |= node->node_type == REF_FRAME_SCALING_EVENT || node->node_type == REF_STORE_EVENT ||
+            node->node_type == REF_CLEAR_EVENT || node->node_type == REF_USE_EVENT ||
+            node->node_type == MG_SIZE_CHANGE_EVENT;
         if (node->node_type == RES_CHANGE_EVENT) {
             SvtAv1InputPicDef* node_data = (SvtAv1InputPicDef*)node->data;
             if (input_ptr->pic_type != EB_AV1_KEY_PICTURE) {
@@ -5618,7 +5624,8 @@ EB_API EbErrorType svt_av1_enc_send_picture(EbComponentType* svt_enc_component, 
     // settings() leaves EOS clear for these. If EOS is set afterwards it is a
     // fail-hard rejection (ref-frame management misuse) or the caller's own
     // end-of-stream, so fall through and let the encoder drain as before.
-    if (validate_on_the_fly_settings(p_buffer, scs, enc_handle_ptr->scs_instance->config_mutex)) {
+    bool has_protected_event = false;
+    if (validate_on_the_fly_settings(p_buffer, scs, enc_handle_ptr->scs_instance->config_mutex, &has_protected_event)) {
         return_val = EB_ErrorBadParameter;
         if (!(p_buffer->flags & EB_BUFFERFLAG_EOS)) {
             return EB_ErrorBadParameter;
@@ -5691,10 +5698,15 @@ EB_API EbErrorType svt_av1_enc_send_picture(EbComponentType* svt_enc_component, 
         svt_release_object(y8b_wrapper);
         return EB_ErrorInsufficientResources;
     }
+    const bool protected_input = (p_buffer->flags & EB_BUFFERFLAG_EOS) || p_buffer->pic_type == EB_AV1_KEY_PICTURE ||
+        p_buffer->pic_type == EB_AV1_INTRA_ONLY_PICTURE || p_buffer->pic_type == EB_AV1_FW_KEY_PICTURE ||
+        p_buffer->pic_type == EB_AV1_SWITCH_PICTURE || has_protected_event;
+    const bool    skip_frame    = svt_av1_rc_try_reserve_frame_skip(scs, protected_input);
     InputCommand* input_cmd_obj = (InputCommand*)input_cmd_wrp->object_ptr;
     //Fill the command with two picture buffers
     input_cmd_obj->eb_input_wrapper_ptr = eb_wrapper_ptr;
     input_cmd_obj->y8b_wrapper          = y8b_wrapper;
+    input_cmd_obj->skip_frame           = skip_frame;
     // Only now is EOS actually in the pipeline; recording it earlier would make
     // deinit drain for a packet that was never going to be produced.
     enc_handle_ptr->eos_received += p_buffer->flags & EB_BUFFERFLAG_EOS;
@@ -5708,7 +5720,7 @@ EB_API EbErrorType svt_av1_enc_send_picture(EbComponentType* svt_enc_component, 
     }
 #endif
 
-    return return_val;
+    return return_val != EB_ErrorNone ? return_val : (skip_frame ? EB_NoErrorFrameSkipped : EB_ErrorNone);
 }
 
 static void copy_output_recon_buffer(EbBufferHeaderType* dst, EbBufferHeaderType* src) {

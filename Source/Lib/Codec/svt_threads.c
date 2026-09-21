@@ -460,7 +460,7 @@ EbErrorType svt_destroy_mutex(EbHandle mutex_handle) {
     EbErrorType return_error;
 
 #ifdef _WIN32
-    return_error = CloseHandle((HANDLE)mutex_handle) ? EB_ErrorDestroyMutexFailed : EB_ErrorNone;
+    return_error = !CloseHandle((HANDLE)mutex_handle) ? EB_ErrorDestroyMutexFailed : EB_ErrorNone;
 #else
     return_error = pthread_mutex_destroy((pthread_mutex_t*)mutex_handle) ? EB_ErrorDestroyMutexFailed : EB_ErrorNone;
     free(mutex_handle);

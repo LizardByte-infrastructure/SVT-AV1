@@ -66,6 +66,7 @@ set(arch_neutral_files
     FilmGrainExpectedResult.h
     FilmGrainTest.cc
     FrameIdTest.cc
+    FrameSkipTest.cc
     FwdTxfm2dApproxTest.cc
     GlobalMotionUtilTest.cc
     IntraBcUtilTest.cc

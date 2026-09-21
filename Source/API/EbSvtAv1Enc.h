@@ -1065,6 +1065,16 @@ typedef struct EbSvtAv1EncConfiguration {
      */
     uint8_t max_hierarchical_levels;
 
+    /**
+     * @brief Maximum number of consecutive input frames RTC CBR may skip.
+     *
+     * 0 (default): disabled.
+     * Nonzero values require RTC low-delay CBR. A skipped input makes
+     * svt_av1_enc_send_picture() return EB_NoErrorFrameSkipped and produces no
+     * output packet.
+     */
+    uint8_t max_allowed_consecutive_frames_skips;
+
     // clang-format off
     /* Add 128 Byte Padding to Struct to avoid changing the size of the public configuration struct */
     uint8_t padding[128
@@ -1075,6 +1085,7 @@ typedef struct EbSvtAv1EncConfiguration {
         - sizeof(bool) // enable_intrabc
         - sizeof(uint8_t) // max_managed_refs (ref-frame mgmt)
         - sizeof(uint8_t) // max_hierarchical_levels (runtime MG size change)
+        - sizeof(uint8_t) // max_allowed_consecutive_frames_skips
     ];
     // clang-format on
 } EbSvtAv1EncConfiguration;
@@ -1187,7 +1198,10 @@ EB_API EbErrorType svt_av1_enc_stream_header_release(EbBufferHeaderType* stream_
      *
      * Parameter:
      * @ *svt_enc_component  Encoder handler.
-     * @ *p_buffer           Header pointer, picture buffer. */
+     * @ *p_buffer           Header pointer, picture buffer.
+     *
+     * Returns EB_NoErrorFrameSkipped when the input was accepted but no output
+     * packet will be produced. */
 EB_API EbErrorType svt_av1_enc_send_picture(EbComponentType* svt_enc_component, EbBufferHeaderType* p_buffer);
 
 /**

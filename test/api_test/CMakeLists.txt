@@ -27,6 +27,7 @@ set(all_files
     SvtAv1EncRtcResolutionApiTest.cc
     SvtAv1EncRefMgmtApiTest.cc
     SvtAv1EncMgSizeApiTest.cc
+    SvtAv1EncFrameSkipApiTest.cc
     SvtAv1EncParamsTest.cc
     params.h
     ${PROJECT_SOURCE_DIR}/test/e2e_test/VideoSource.cc

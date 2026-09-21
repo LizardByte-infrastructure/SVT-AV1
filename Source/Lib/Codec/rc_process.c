@@ -514,6 +514,10 @@ void svt_av1_rc_init(SequenceControlSet* scs) {
     rc->buffer_level    = rc->starting_buffer_level;
     rc->bits_off_target = rc->starting_buffer_level;
 
+    svt_block_on_mutex(rc->rc_mutex);
+    rc->frame_skip_credits = 0;
+    svt_release_mutex(rc->rc_mutex);
+
     rc->rolling_target_bits = rc->avg_frame_bandwidth;
     rc->rolling_actual_bits = rc->avg_frame_bandwidth;
     rc->total_actual_bits   = 0;

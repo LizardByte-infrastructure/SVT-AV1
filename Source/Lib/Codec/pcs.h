@@ -1171,6 +1171,8 @@ typedef struct PictureParentControlSet {
     uint32_t target_bit_rate;
     uint32_t frame_rate_numerator;
     uint32_t frame_rate_denominator;
+    int64_t  frame_skip_drain_bits;
+    uint32_t frame_skip_count;
     uint64_t norm_me_dist;
     uint8_t  tpl_params_ready;
     bool     is_startup_gop;

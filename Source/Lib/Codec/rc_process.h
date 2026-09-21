@@ -189,6 +189,10 @@ typedef struct RATE_CONTROL {
     uint32_t prev_avg_base_me_dist;
 
     // RTC CBR
+    uint8_t  frame_skip_credits;
+    uint8_t  consecutive_frame_skips;
+    uint32_t frame_skip_reservations;
+
     int    mini_qop_size;
     int    min_ref_base_q_idx;
     int    rc_mini_gop_pos; // RC virtual mini-GoP position (0..mini_qop_size-1)
@@ -270,6 +274,9 @@ void svt_aom_dynamic_resize_decision(struct PictureParentControlSet* pcs);
 void svt_av1_rc_calc_qindex_rtc_cbr(struct PictureControlSet* pcs);
 void svt_av1_rc_postencode_update_rtc_cbr(struct PictureParentControlSet* ppcs);
 bool svt_av1_rc_recode_decision_rtc_cbr(struct PictureControlSet* pcs);
+bool svt_av1_rc_try_reserve_frame_skip(struct SequenceControlSet* scs, bool protected_input);
+void svt_av1_rc_apply_frame_skip_drain(RATE_CONTROL* rc, int64_t* drain_bits, uint32_t* drain_count);
+void svt_av1_rc_publish_frame_skip_credits(const struct SequenceControlSet* scs, RATE_CONTROL* rc);
 
 // common stuff
 void    svt_av1_rc_init(struct SequenceControlSet* scs);
