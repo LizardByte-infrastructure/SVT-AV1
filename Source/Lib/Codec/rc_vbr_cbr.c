@@ -784,7 +784,7 @@ void svt_av1_rc_process_rate_allocation(PictureControlSet* pcs, SequenceControlS
     }
 
     int32_t update_type = ppcs->update_type;
-    if (ppcs->tpl_ctrls.enable && ppcs->r0 != 0 &&
+    if (ppcs->tpl_ctrls.enable && ppcs->r0_gen &&
         (update_type == SVT_AV1_KF_UPDATE || update_type == SVT_AV1_GF_UPDATE || update_type == SVT_AV1_ARF_UPDATE)) {
         process_tpl_stats_frame_kf_gfu_boost(pcs);
     }

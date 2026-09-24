@@ -446,6 +446,9 @@ typedef struct MotionEstimationData {
     uint8_t      max_refs; // total max active references
     uint8_t      max_l0; // max active refs in L0
     TplStats**   tpl_stats;
+    // False until tpl_mc_flow() fills tpl_stats for this picture; a pooled object still holds the
+    // previous tenant's stale values, lazy rewrite
+    bool tpl_stats_valid;
 
     TplSrcStats* tpl_src_stats_buffer; // tpl src based stats
 
@@ -1262,6 +1265,7 @@ EbErrorType svt_aom_me_sb_results_ctor(MeSbResults* obj_ptr, PictureControlSetIn
 EbErrorType ppcs_update_param(PictureParentControlSet* ppcs);
 EbErrorType pcs_update_param(PictureControlSet* pcs, int8_t enc_mode);
 EbErrorType me_update_param(MotionEstimationData* me_data, struct SequenceControlSet* scs);
+void        me_reset_carryover(MotionEstimationData* me_data);
 EbErrorType recon_coef_update_param(EncDecSet* recon_coef, struct SequenceControlSet* scs);
 bool        svt_aom_is_pic_skipped(PictureParentControlSet* pcs);
 void svt_aom_get_gm_needed_resolutions(uint8_t ds_lvl, bool* gm_need_full, bool* gm_need_quart, bool* gm_need_sixteen);

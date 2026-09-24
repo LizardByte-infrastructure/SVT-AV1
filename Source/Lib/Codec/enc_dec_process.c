@@ -2060,7 +2060,7 @@ static void recode_loop_decision_maker(PictureControlSet* pcs, SequenceControlSe
 
         // 2pass QPM with tpl_la
 #if CONFIG_ENABLE_TPL
-        if (scs->static_config.aq_mode == 2 && ppcs->tpl_ctrls.enable && ppcs->r0 != 0) {
+        if (scs->static_config.aq_mode == 2 && ppcs->tpl_ctrls.enable && ppcs->r0_gen) {
             svt_aom_sb_qp_derivation_tpl_la(pcs);
         }
 #endif

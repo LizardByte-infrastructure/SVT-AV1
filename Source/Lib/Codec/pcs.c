@@ -1291,7 +1291,8 @@ static EbErrorType picture_parent_control_set_ctor(PictureParentControlSet* obje
         }
     }
 
-    object_ptr->r0 = 0;
+    // Match the per-picture reset in resource coordination.
+    object_ptr->r0 = 1.0;
 
     EB_MALLOC_ARRAY(object_ptr->rc_me_distortion, object_ptr->b64_total_count);
     EB_MALLOC_ARRAY(object_ptr->rc_me_allow_gm, object_ptr->b64_total_count);
@@ -1416,6 +1417,16 @@ EbErrorType me_update_param(MotionEstimationData* me_data, SequenceControlSet* s
     me_data->b64_total_count = scs->b64_total_count;
 
     return return_error;
+}
+
+/*
+me_reset_carryover: a recycled MotionEstimationData still holds its previous tenant's output. tpl_stats and
+base_rdmult are the two fields a picture can read without a guard of its own, so clear them here; the other
+pooled TPL arrays are only read behind tpl_is_valid or blk_lambda_tuning.
+*/
+void me_reset_carryover(MotionEstimationData* me_data) {
+    me_data->tpl_stats_valid = false;
+    me_data->base_rdmult     = 0;
 }
 
 static EbErrorType me_ctor(MotionEstimationData* object_ptr, EbPtr object_init_data_ptr) {
